@@ -1,0 +1,26 @@
+\begin{table}[t]
+\centering
+\small
+\begin{tabular}{llrrrrrr}
+\toprule
+Metric & Sketch & OLS value & Empirical & Prop.~1 (tight) & Prop.~1 & Thm.~1 & Thm.~1 / emp. \\
+\midrule
+IF & Gaussian & 10.5 & 0.00425 & 1.15 & $\infty$ & 1.07 & 251 \\
+IF & CountSketch & 10.5 & 0.00363 & 1.2 & $\infty$ & 1.11 & 305 \\
+IF & Uniform & 10.5 & 0.00383 & $\infty$ & $\infty$ & $\infty$ & $\infty$ \\
+IF & Importance & 10.5 & 0.00355 & 4.36 & $\infty$ & 2.73 & 769 \\
+\midrule
+GFE & Gaussian & 0.151 & 0.0183 & 6.79 & $\infty$ & 0.976 & 53.3 \\
+GFE & CountSketch & 0.151 & 0.0185 & 7.08 & $\infty$ & 1.01 & 54.8 \\
+GFE & Uniform & 0.151 & 0.0242 & $\infty$ & $\infty$ & $\infty$ & $\infty$ \\
+GFE & Importance & 0.151 & 0.0194 & 25.8 & $\infty$ & 2.56 & 132 \\
+\midrule
+MSE & Gaussian & 0.0298 & 0.0162 & 12.8 & $\infty$ & 43.5 & 2.68e+03 \\
+MSE & CountSketch & 0.0298 & 0.0151 & 13.6 & $\infty$ & 46.5 & 3.09e+03 \\
+MSE & Uniform & 0.0298 & 0.00937 & $\infty$ & $\infty$ & $\infty$ & $\infty$ \\
+MSE & Importance & 0.0298 & 0.0162 & 117 & $\infty$ & 279 & 1.72e+04 \\
+\bottomrule
+\end{tabular}
+\caption{Distortion under sketching (bounds_acs-CA2018-sex). Empirical = mean over repetitions.}
+\label{tab:bounds_acs-CA2018-sex}
+\end{table}

@@ -1,0 +1,26 @@
+\begin{table}[t]
+\centering
+\small
+\begin{tabular}{llrrrrrr}
+\toprule
+Metric & Sketch & OLS value & Empirical & Prop.~1 (tight) & Prop.~1 & Thm.~1 & Thm.~1 / emp. \\
+\midrule
+IF & Gaussian & 7.7 & 0.0427 & 0.664 & 1.55 & 0.598 & 14 \\
+IF & CountSketch & 7.7 & 0.0418 & 0.68 & 1.57 & 0.605 & 14.5 \\
+IF & Uniform & 7.7 & 0.0452 & 0.669 & 1.56 & 0.604 & 13.4 \\
+IF & Importance & 7.7 & 0.0368 & 0.613 & 1.51 & 0.476 & 12.9 \\
+\midrule
+GFE & Gaussian & 0.0675 & 0.0295 & 5.16 & 12.1 & 0.485 & 16.4 \\
+GFE & CountSketch & 0.0675 & 0.0305 & 5.29 & 12.2 & 0.492 & 16.1 \\
+GFE & Uniform & 0.0675 & 0.0331 & 5.2 & 12.1 & 0.492 & 14.8 \\
+GFE & Importance & 0.0675 & 0.0281 & 4.77 & 11.7 & 0.396 & 14.1 \\
+\midrule
+MSE & Gaussian & 0.254 & 0.0438 & 5.37 & 17.6 & 7.21 & 164 \\
+MSE & CountSketch & 0.254 & 0.0487 & 5.54 & 17.9 & 7.35 & 151 \\
+MSE & Uniform & 0.254 & 0.053 & 5.42 & 17.7 & 7.37 & 139 \\
+MSE & Importance & 0.254 & 0.0483 & 4.84 & 16.9 & 5 & 104 \\
+\bottomrule
+\end{tabular}
+\caption{Distortion under sketching (synth). Empirical = mean over repetitions.}
+\label{tab:synth}
+\end{table}

@@ -1,0 +1,26 @@
+\begin{table}[t]
+\centering
+\small
+\begin{tabular}{llrrrrrrr}
+\toprule
+Metric & Sketch & OLS value & Mean change & Mean rel.\ change & \% runs worse & 10th pct (rel.) & 90th pct (rel.) & Excess loss (rel.) \\
+\midrule
+IF & Gaussian & 0.754 & 0.0218 & 0.0218 & 48 & -0.271 & 0.374 & 0.018 \\
+IF & CountSketch & 0.754 & 0.0386 & 0.0386 & 55 & -0.309 & 0.378 & 0.0222 \\
+IF & Uniform & 0.754 & -0.0101 & -0.0101 & 43 & -0.329 & 0.274 & 0.0217 \\
+IF & Importance & 0.754 & 0.00946 & 0.00946 & 55 & -0.111 & 0.132 & 0.0153 \\
+\midrule
+GFE & Gaussian & 0.542 & 0.0125 & 0.0232 & 53 & -0.123 & 0.2 & 0.018 \\
+GFE & CountSketch & 0.542 & -0.00366 & -0.00676 & 47 & -0.207 & 0.216 & 0.0222 \\
+GFE & Uniform & 0.542 & -0.0108 & -0.0199 & 43 & -0.233 & 0.187 & 0.0217 \\
+GFE & Importance & 0.542 & -0.0112 & -0.0206 & 40 & -0.173 & 0.132 & 0.0153 \\
+\midrule
+MSE & Gaussian & 0.163 & 0.00963 & 0.0592 & 52 & -0.518 & 0.608 & 0.018 \\
+MSE & CountSketch & 0.163 & 0.0202 & 0.124 & 56 & -0.453 & 0.866 & 0.0222 \\
+MSE & Uniform & 0.163 & 0.0279 & 0.171 & 62 & -0.378 & 0.785 & 0.0217 \\
+MSE & Importance & 0.163 & 0.00616 & 0.0379 & 54 & -0.379 & 0.561 & 0.0153 \\
+\bottomrule
+\end{tabular}
+\caption{Effect of sketching on fairness (law-race). Positive change = larger disparity than OLS.}
+\label{tab:harm_law-race}
+\end{table}

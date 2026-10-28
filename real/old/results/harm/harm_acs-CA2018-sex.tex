@@ -1,0 +1,26 @@
+\begin{table}[t]
+\centering
+\small
+\begin{tabular}{llrrrrrrr}
+\toprule
+Metric & Sketch & OLS value & Mean change & Mean rel.\ change & \% runs worse & 10th pct (rel.) & 90th pct (rel.) & Excess loss (rel.) \\
+\midrule
+IF & Gaussian & 10.5 & 0.000525 & 0.000525 & 51.7 & -0.00584 & 0.0072 & 0.07 \\
+IF & CountSketch & 10.5 & 0.000781 & 0.000781 & 52 & -0.00512 & 0.00756 & 0.0719 \\
+IF & Uniform & 10.5 & -8.9e-05 & -8.9e-05 & 48.7 & -0.00606 & 0.00622 & 0.515 \\
+IF & Importance & 10.5 & 7.13e-05 & 7.13e-05 & 51.3 & -0.00525 & 0.00556 & 0.0411 \\
+\midrule
+GFE & Gaussian & 0.151 & 0.000643 & 0.00426 & 50.7 & -0.201 & 0.199 & 0.07 \\
+GFE & CountSketch & 0.151 & -0.000742 & -0.00492 & 47.3 & -0.212 & 0.216 & 0.0719 \\
+GFE & Uniform & 0.151 & 0.00111 & 0.00738 & 54 & -0.325 & 0.28 & 0.515 \\
+GFE & Importance & 0.151 & 0.000727 & 0.00482 & 51 & -0.196 & 0.212 & 0.0411 \\
+\midrule
+MSE & Gaussian & 0.0298 & 0.00242 & 0.0814 & 51.7 & -0.729 & 0.964 & 0.07 \\
+MSE & CountSketch & 0.0298 & 0.00225 & 0.0756 & 51 & -0.77 & 0.938 & 0.0719 \\
+MSE & Uniform & 0.0298 & 0.0867 & 2.91 & 85 & -0.377 & 5.58 & 0.515 \\
+MSE & Importance & 0.0298 & -0.000769 & -0.0258 & 44 & -0.822 & 0.872 & 0.0411 \\
+\bottomrule
+\end{tabular}
+\caption{Effect of sketching on fairness (acs-CA2018-sex). Positive change = larger disparity than OLS.}
+\label{tab:harm_acs-CA2018-sex}
+\end{table}

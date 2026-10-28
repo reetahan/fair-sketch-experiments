@@ -1,0 +1,44 @@
+\begin{table}[t]
+\centering
+\small
+\begin{tabular}{llrrrrrrr}
+\toprule
+Metric & Sketch & Method & OLS value & Empirical & $J/J_{\rm van}$ & $\hat J$ & $R$ & $\hat\kappa$ \\
+\midrule
+IF & Gaussian & vanilla & 10.5 & 0.00387 & 1 & 0.175 & 1 & -- \\
+IF & Gaussian & oracle & 10.5 & 0.00409 & 1 & 0.194 & 1 & -- \\
+IF & Gaussian & proxy & 10.5 & 0.00461 & 1 & 0.237 & 1 & 0.248 \\
+IF & CountSketch & vanilla & 10.5 & 0.00444 & 1 & 0.246 & 1 & -- \\
+IF & CountSketch & oracle & 10.5 & 0.00348 & 1 & 0.186 & 1 & -- \\
+IF & CountSketch & proxy & 10.5 & 0.00424 & 1 & 0.25 & 1 & 0.241 \\
+IF & Uniform & vanilla & 10.5 & 1.78e+08 & 1 & 3.5e+20 & 1 & -- \\
+IF & Uniform & oracle & 10.5 & 0.00412 & 0.999 & 0.539 & 1 & -- \\
+IF & Uniform & proxy & 10.5 & 0.00427 & 1 & 0.538 & 1 & 0.7 \\
+IF & Importance & vanilla & 10.5 & 0.00366 & 1 & 0.114 & -- & -- \\
+\midrule
+GFE & Gaussian & vanilla & 0.151 & 0.0192 & 1 & 0.000549 & 0.999 & -- \\
+GFE & Gaussian & oracle & 0.151 & 0.0189 & 1 & 0.000542 & 0.999 & -- \\
+GFE & Gaussian & proxy & 0.151 & 0.0203 & 1 & 0.000693 & 0.999 & 0.235 \\
+GFE & CountSketch & vanilla & 0.151 & 0.0174 & 1 & 0.000527 & 0.999 & -- \\
+GFE & CountSketch & oracle & 0.151 & 0.0194 & 1 & 0.000597 & 0.999 & -- \\
+GFE & CountSketch & proxy & 0.151 & 0.0194 & 1 & 0.000572 & 0.999 & 0.254 \\
+GFE & Uniform & vanilla & 0.151 & 0.0254 & 1 & 0.00108 & 1 & -- \\
+GFE & Uniform & oracle & 0.151 & 1.66e+07 & 0.999 & 2.76e+16 & 1 & -- \\
+GFE & Uniform & proxy & 0.151 & 3.09e+05 & 1 & 9.56e+12 & 1 & 0.242 \\
+GFE & Importance & vanilla & 0.151 & 0.0217 & 1 & 0.000742 & -- & -- \\
+\midrule
+MSE & Gaussian & vanilla & 0.0298 & 0.019 & 1 & 3.43e+05 & 0.98 & -- \\
+MSE & Gaussian & oracle & 0.0298 & 0.015 & 1.02 & 2.79e+05 & 0.98 & -- \\
+MSE & Gaussian & proxy & 0.0298 & 0.0155 & 1.03 & 2.88e+05 & 0.98 & 6.51 \\
+MSE & CountSketch & vanilla & 0.0298 & 0.0169 & 1 & 3.05e+05 & 0.98 & -- \\
+MSE & CountSketch & oracle & 0.0298 & 0.0178 & 1.02 & 3.57e+05 & 0.98 & -- \\
+MSE & CountSketch & proxy & 0.0298 & 0.0173 & 1.03 & 2.74e+05 & 0.98 & 6.55 \\
+MSE & Uniform & vanilla & 0.0298 & 0.0786 & 1 & 4.05e+05 & 1.03 & -- \\
+MSE & Uniform & oracle & 0.0298 & 4.07e+19 & 0.972 & 2.86e+24 & 1.03 & -- \\
+MSE & Uniform & proxy & 0.0298 & 0.0827 & 0.985 & 4.44e+05 & 1.03 & 17.5 \\
+MSE & Importance & vanilla & 0.0298 & 0.0176 & 1 & 3.46e+05 & -- & -- \\
+\bottomrule
+\end{tabular}
+\caption{Stratified oracle and proxy (acs-CA2018-sex).}
+\label{tab:strat_acs-CA2018-sex}
+\end{table}

@@ -1,0 +1,31 @@
+\begin{table}[t]
+\centering
+\small
+\begin{tabular}{llrrrr}
+\toprule
+Metric & Method & Mean $|$change$|$ (rel.) & Mean change (rel.) & \% worse & $f(\tilde x)/f(\hat x)$ \\
+\midrule
+IF & vanilla: Newton-Hessian, CountSketch & 0.0126 & -0.0105 & 23.3 & 1 \\
+IF & vanilla: Newton-Hessian, Gaussian & 0.0127 & -0.0103 & 18.3 & 1 \\
+IF & oracle (stratified IS) & 0.0133 & -0.0132 & 1.7 & 1 \\
+IF & proxy (stratified IS) & 0.0124 & -0.0117 & 13.3 & 1 \\
+\midrule
+DP & vanilla: Newton-Hessian, CountSketch & 0.00559 & -0.00334 & 35 & 1 \\
+DP & vanilla: Newton-Hessian, Gaussian & 0.00645 & -0.00385 & 25 & 1 \\
+DP & oracle (stratified IS) & 0.00521 & -0.00441 & 15 & 1 \\
+DP & proxy (stratified IS) & 0.00491 & -0.0038 & 25 & 1 \\
+\midrule
+TPR & vanilla: Newton-Hessian, CountSketch & 0.0158 & -0.00688 & 41.7 & 1 \\
+TPR & vanilla: Newton-Hessian, Gaussian & 0.0147 & -0.00571 & 30 & 1 \\
+TPR & oracle (stratified IS) & 0.0138 & -0.00827 & 31.7 & 1 \\
+TPR & proxy (stratified IS) & 0.0145 & -0.00696 & 31.7 & 1 \\
+\midrule
+FPR & vanilla: Newton-Hessian, CountSketch & 0.00792 & -0.0013 & 51.7 & 1 \\
+FPR & vanilla: Newton-Hessian, Gaussian & 0.00847 & -0.00235 & 38.3 & 1 \\
+FPR & oracle (stratified IS) & 0.0059 & -0.00217 & 46.7 & 1 \\
+FPR & proxy (stratified IS) & 0.00644 & -0.00173 & 45 & 1 \\
+\bottomrule
+\end{tabular}
+\caption{Classification, synthetic, 3 Newton steps, m=300: vanilla vs oracle vs proxy.}
+\label{tab:s5c_synth_table}
+\end{table}

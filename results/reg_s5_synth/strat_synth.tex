@@ -1,0 +1,44 @@
+\begin{table}[t]
+\centering
+\small
+\begin{tabular}{llrrrrrrrr}
+\toprule
+Metric & Sketch & Method & OLS value & Mean $|$change$|$ (rel.) & Mean change (rel.) & \% worse & $J/J_{\rm van}$ & $R$ & $\hat\kappa$ \\
+\midrule
+IF & Gaussian & vanilla & 7.81 & 0.0645 & 0.00697 & 53.5 & 1 & 1.32 & -- \\
+IF & Gaussian & oracle & 7.81 & 0.0568 & 0.00852 & 57.5 & 0.758 & 1.32 & -- \\
+IF & Gaussian & proxy & 7.81 & 0.0627 & 0.0119 & 57 & 0.761 & 1.32 & 0.145 \\
+IF & CountSketch & vanilla & 7.81 & 0.0684 & -0.00316 & 47 & 1 & 1.32 & -- \\
+IF & CountSketch & oracle & 7.81 & 0.0655 & 0.0112 & 57.5 & 0.758 & 1.32 & -- \\
+IF & CountSketch & proxy & 7.81 & 0.0606 & 0.00296 & 49.5 & 0.761 & 1.32 & 0.145 \\
+IF & Uniform & vanilla & 7.81 & 0.0715 & 0.0115 & 57.5 & 1 & 1.31 & -- \\
+IF & Uniform & oracle & 7.81 & 0.0644 & 0.0108 & 53 & 0.761 & 1.31 & -- \\
+IF & Uniform & proxy & 7.81 & 0.0573 & 0.0125 & 59.5 & 0.764 & 1.31 & 0.142 \\
+IF & Importance & vanilla & 7.81 & 0.0523 & 0.0116 & 57 & 1 & -- & -- \\
+\midrule
+GFE & Gaussian & vanilla & 0.0673 & 0.691 & 0.137 & 50 & 1 & 1.14 & -- \\
+GFE & Gaussian & oracle & 0.0673 & 0.618 & 0.104 & 49 & 0.876 & 1.14 & -- \\
+GFE & Gaussian & proxy & 0.0673 & 0.601 & 0.137 & 54 & 0.879 & 1.14 & 0.139 \\
+GFE & CountSketch & vanilla & 0.0673 & 0.644 & 0.165 & 54.5 & 1 & 1.14 & -- \\
+GFE & CountSketch & oracle & 0.0673 & 0.643 & 0.176 & 53.5 & 0.876 & 1.14 & -- \\
+GFE & CountSketch & proxy & 0.0673 & 0.615 & 0.0509 & 47.5 & 0.879 & 1.14 & 0.149 \\
+GFE & Uniform & vanilla & 0.0673 & 0.707 & 0.24 & 52.5 & 1 & 1.6 & -- \\
+GFE & Uniform & oracle & 0.0673 & 0.592 & 0.155 & 52 & 0.624 & 1.6 & -- \\
+GFE & Uniform & proxy & 0.0673 & 0.614 & 0.138 & 51.5 & 0.627 & 1.6 & 0.14 \\
+GFE & Importance & vanilla & 0.0673 & 0.563 & 0.122 & 54.5 & 1 & -- & -- \\
+\midrule
+MSE & Gaussian & vanilla & 8.15 & 0.0119 & -3.19e-07 & 52 & 1 & 1.27 & -- \\
+MSE & Gaussian & oracle & 8.15 & 0.00983 & -0.000775 & 48.5 & 0.785 & 1.27 & -- \\
+MSE & Gaussian & proxy & 8.15 & 0.00947 & 0.00153 & 54.5 & 0.794 & 1.27 & 3.69 \\
+MSE & CountSketch & vanilla & 8.15 & 0.0107 & -0.000197 & 49 & 1 & 1.27 & -- \\
+MSE & CountSketch & oracle & 8.15 & 0.00878 & -0.000877 & 46.5 & 0.785 & 1.27 & -- \\
+MSE & CountSketch & proxy & 8.15 & 0.0099 & -0.000667 & 47.5 & 0.794 & 1.27 & 3.69 \\
+MSE & Uniform & vanilla & 8.15 & 0.0108 & -3.05e-05 & 46.5 & 1 & 1.39 & -- \\
+MSE & Uniform & oracle & 8.15 & 0.00999 & -0.000104 & 49 & 0.721 & 1.39 & -- \\
+MSE & Uniform & proxy & 8.15 & 0.00991 & -0.000766 & 47.5 & 0.73 & 1.39 & 3.67 \\
+MSE & Importance & vanilla & 8.15 & 0.00861 & 0.000173 & 54.5 & 1 & -- & -- \\
+\bottomrule
+\end{tabular}
+\caption{Unsketched (OLS), sketched (vanilla), oracle and proxy (synth). Changes are relative to OLS; positive = less fair.}
+\label{tab:strat_synth}
+\end{table}

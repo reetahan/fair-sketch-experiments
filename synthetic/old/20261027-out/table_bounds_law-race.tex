@@ -1,0 +1,26 @@
+\begin{table}[t]
+\centering
+\small
+\begin{tabular}{llrrrrrr}
+\toprule
+Metric & Sketch & OLS value & Empirical & Prop.~1 (tight) & Prop.~1 & Thm.~1 & Thm.~1 / emp. \\
+\midrule
+IF & Gaussian & 0.754 & 0.201 & 3.23 & 7.85 & 2.54 & 12.6 \\
+IF & CountSketch & 0.754 & 0.216 & 3.32 & 7.93 & 2.59 & 12 \\
+IF & Uniform & 0.754 & 0.236 & 5.97 & 9.48 & 3.8 & 16.1 \\
+IF & Importance & 0.754 & 0.0978 & 3.81 & 8.3 & 2.04 & 20.9 \\
+\midrule
+GFE & Gaussian & 0.542 & 0.0685 & 4.8 & 11.7 & 0.916 & 13.4 \\
+GFE & CountSketch & 0.542 & 0.064 & 4.94 & 11.8 & 0.932 & 14.6 \\
+GFE & Uniform & 0.542 & 0.0788 & 8.89 & 14.1 & 1.39 & 17.7 \\
+GFE & Importance & 0.542 & 0.0508 & 5.67 & 12.3 & 0.831 & 16.4 \\
+\midrule
+MSE & Gaussian & 0.163 & 0.0661 & 6.33 & 24.6 & 8.95 & 135 \\
+MSE & CountSketch & 0.163 & 0.0598 & 6.6 & 25 & 9.22 & 154 \\
+MSE & Uniform & 0.163 & 0.0718 & 15.9 & 33.6 & 20.3 & 284 \\
+MSE & Importance & 0.163 & 0.0512 & 8.04 & 26.9 & 7.51 & 147 \\
+\bottomrule
+\end{tabular}
+\caption{Distortion under sketching (bounds_law-race). Empirical = mean over repetitions.}
+\label{tab:bounds_law-race}
+\end{table}

@@ -1,0 +1,36 @@
+\begin{table}[t]
+\centering
+\small
+\begin{tabular}{llrrrrrrrr}
+\toprule
+Metric & Sketch & Method & OLS value & Mean $|$change$|$ (rel.) & Mean change (rel.) & \% worse & $J/J_{\rm van}$ & $R$ & $\hat\kappa$ \\
+\midrule
+IF & Gaussian & vanilla & 10.5 & 0.00384 & 0.000749 & 48 & 1 & 1 & -- \\
+IF & Gaussian & oracle & 10.5 & 0.0038 & 0.000753 & 52 & 1 & 1 & -- \\
+IF & Gaussian & proxy & 10.5 & 0.00399 & 0.00145 & 57 & 1 & 1 & 0.236 \\
+IF & CountSketch & vanilla & 10.5 & 0.00402 & 0.00132 & 59 & 1 & 1 & -- \\
+IF & CountSketch & oracle & 10.5 & 0.00395 & 0.000948 & 57 & 1 & 1 & -- \\
+IF & CountSketch & proxy & 10.5 & 0.00391 & 0.000705 & 53 & 1 & 1 & 0.259 \\
+IF & Importance & vanilla & 10.5 & 0.00371 & -0.000155 & 48 & 1 & -- & -- \\
+\midrule
+GFE & Gaussian & vanilla & 0.151 & 0.123 & 0.016 & 56 & 1 & 0.999 & -- \\
+GFE & Gaussian & oracle & 0.151 & 0.123 & -0.0227 & 42 & 1 & 0.999 & -- \\
+GFE & Gaussian & proxy & 0.151 & 0.141 & 0.00021 & 51 & 1 & 0.999 & 0.239 \\
+GFE & CountSketch & vanilla & 0.151 & 0.116 & 0.0136 & 55 & 1 & 0.999 & -- \\
+GFE & CountSketch & oracle & 0.151 & 0.135 & 0.0197 & 58 & 1 & 0.999 & -- \\
+GFE & CountSketch & proxy & 0.151 & 0.147 & -0.0217 & 47 & 1 & 0.999 & 0.238 \\
+GFE & Importance & vanilla & 0.151 & 0.139 & -0.004 & 49.5 & 1 & -- & -- \\
+\midrule
+MSE & Gaussian & vanilla & 0.0298 & 0.509 & 0.118 & 58 & 1 & 0.98 & -- \\
+MSE & Gaussian & oracle & 0.0298 & 0.506 & 0.00274 & 41 & 1.02 & 0.98 & -- \\
+MSE & Gaussian & proxy & 0.0298 & 0.539 & 0.0794 & 49 & 1.03 & 0.98 & 6.45 \\
+MSE & CountSketch & vanilla & 0.0298 & 0.574 & 0.0794 & 45 & 1 & 0.98 & -- \\
+MSE & CountSketch & oracle & 0.0298 & 0.589 & 0.115 & 54 & 1.02 & 0.98 & -- \\
+MSE & CountSketch & proxy & 0.0298 & 0.533 & 0.152 & 53 & 1.04 & 0.98 & 6.41 \\
+MSE & Uniform & proxy & 0.0298 & 0.657 & -0.657 & 0 & 0.986 & 1.03 & 17.2 \\
+MSE & Importance & vanilla & 0.0298 & 0.618 & 0.149 & 52 & 1 & -- & -- \\
+\bottomrule
+\end{tabular}
+\caption{Unsketched (OLS), sketched (vanilla), oracle and proxy (s5_real_acs-CA2018-sex). Changes are relative to OLS; positive = less fair.}
+\label{tab:strat_s5_real_acs-CA2018-sex}
+\end{table}

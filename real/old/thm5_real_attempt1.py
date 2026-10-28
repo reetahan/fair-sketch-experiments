@@ -1,0 +1,55 @@
+#!/usr/bin/env python3
+"""Section 5.3, real data (law school; ACSIncome with --acs_state CA): OLS -> vanilla -> oracle -> proxy,
+sweep over m, and synthetic ablations of the law-school data.
+  --exp table | m | ablate | all
+Outputs: strat_<dataset>.{csv,tex}, strat_sweep_m_<dataset>.{csv,png}, ablate_strat_*.{csv,png}"""
+import argparse, time
+import numpy as np
+import pandas as pd
+import os, sys
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))   # fs_common.py lives at the repo root
+from fs_common import *
+
+
+def main():
+    ap = add_real_args(add_common_args(argparse.ArgumentParser()))
+    ap.add_argument("--exp", default="all")
+    args = finish_args(ap.parse_args())
+    rng = np.random.default_rng(args.seed)
+    exps = set(args.exp.split(","))
+    want = lambda e: "all" in exps or e in exps
+    out, reps = args.out, args.reps
+    t0 = time.time()
+    probs = real_problems(args)
+    for prob in probs:
+        tag = prob.name
+        mm = min(args.m, prob.n // 4)
+        mp = max(2 * prob.d, mm // 5)
+        print(f"[{tag}] n={prob.n} d={prob.d} cond={prob.cond:.1f} n0={prob.n0} n1={prob.n1} m={mm} m_pilot={mp}")
+        if want("table"):
+            save_strat_table(strat_experiment(prob, mm, mp, reps, rng, pilot_fam=args.pilot_fam), out, tag)
+        if want("m"):
+            ms = [x for x in [8 * prob.d, 16 * prob.d, 32 * prob.d, 64 * prob.d, 128 * prob.d] if x < prob.n // 2]
+            run_sweep_strat(f"m_{tag}", ms, lambda x, p=prob: p, lambda x: x, lambda x, p=prob: max(2 * p.d, x // 5), reps, rng,
+                            out, "total sketch size m (pilot = m/5)", pilot_fam=args.pilot_fam)
+    if want("ablate") and probs:
+        base = probs[0]
+        mm = min(args.m, base.n // 4)
+        for kind, vals in (("scale_col", [1, 3, 10, 30]), ("subsample0", [1.0, 0.5, 0.2, 0.1]), ("noise1", [0.0, 0.5, 1.0, 2.0])):
+            frames = []
+            for v in vals:
+                p = alter(base, kind, v, args.seed)
+                dfs = strat_experiment(p, mm, max(2 * p.d, mm // 5), reps, rng, pilot_fam=args.pilot_fam)
+                dfs["kind"], dfs["x"] = kind, v
+                frames.append(dfs)
+                print(f"  ablate {kind}={v}: done", flush=True)
+            dd = pd.concat(frames)
+            dd.to_csv(f"{out}/ablate_strat_{kind}.csv", index=False)
+            plot_strat_sweep(dd, "x", kind, f"{out}/ablate_strat_{kind}.png", logx=(kind == "scale_col"), title=f"ablation: {kind}")
+            plot_strat_sweep(dd, "x", kind, f"{out}/ablate_strat_{kind}_distortion.png", logx=(kind == "scale_col"),
+                             title=f"ablation: {kind}", ycol="emp_mean")
+    print(f"done in {time.time() - t0:.0f}s; outputs in {out}/")
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,44 @@
+\begin{table}[t]
+\centering
+\small
+\begin{tabular}{llrrrrrrr}
+\toprule
+Metric & Sketch & Method & OLS value & Empirical & $J/J_{\rm van}$ & $\hat J$ & $R$ & $\hat\kappa$ \\
+\midrule
+IF & Gaussian & vanilla & 7.81 & 0.0605 & 1 & 1.29 & 1.32 & -- \\
+IF & Gaussian & oracle & 7.81 & 0.0577 & 0.758 & 1.01 & 1.32 & -- \\
+IF & Gaussian & proxy & 7.81 & 0.0604 & 0.761 & 0.991 & 1.32 & 0.147 \\
+IF & CountSketch & vanilla & 7.81 & 0.0647 & 1 & 1.4 & 1.32 & -- \\
+IF & CountSketch & oracle & 7.81 & 0.0662 & 0.758 & 1.17 & 1.32 & -- \\
+IF & CountSketch & proxy & 7.81 & 0.0651 & 0.761 & 1.07 & 1.32 & 0.149 \\
+IF & Uniform & vanilla & 7.81 & 0.0642 & 1 & 1.34 & 1.31 & -- \\
+IF & Uniform & oracle & 7.81 & 0.0589 & 0.761 & 1.13 & 1.31 & -- \\
+IF & Uniform & proxy & 7.81 & 0.0598 & 0.764 & 1.05 & 1.31 & 0.139 \\
+IF & Importance & vanilla & 7.81 & 0.0463 & 1 & 0.688 & -- & -- \\
+\midrule
+GFE & Gaussian & vanilla & 0.0673 & 0.0435 & 1 & 0.00473 & 1.14 & -- \\
+GFE & Gaussian & oracle & 0.0673 & 0.0395 & 0.876 & 0.00414 & 1.14 & -- \\
+GFE & Gaussian & proxy & 0.0673 & 0.0435 & 0.879 & 0.00383 & 1.14 & 0.147 \\
+GFE & CountSketch & vanilla & 0.0673 & 0.0439 & 1 & 0.00481 & 1.14 & -- \\
+GFE & CountSketch & oracle & 0.0673 & 0.0432 & 0.876 & 0.00467 & 1.14 & -- \\
+GFE & CountSketch & proxy & 0.0673 & 0.0446 & 0.879 & 0.00354 & 1.14 & 0.134 \\
+GFE & Uniform & vanilla & 0.0673 & 0.0527 & 1 & 0.00739 & 1.6 & -- \\
+GFE & Uniform & oracle & 0.0673 & 0.0387 & 0.624 & 0.00362 & 1.6 & -- \\
+GFE & Uniform & proxy & 0.0673 & 0.0381 & 0.627 & 0.00381 & 1.6 & 0.14 \\
+GFE & Importance & vanilla & 0.0673 & 0.041 & 1 & 0.00357 & -- & -- \\
+\midrule
+MSE & Gaussian & vanilla & 8.15 & 0.0755 & 1 & 2.33e+04 & 1.27 & -- \\
+MSE & Gaussian & oracle & 8.15 & 0.0798 & 0.785 & 2.44e+04 & 1.27 & -- \\
+MSE & Gaussian & proxy & 8.15 & 0.0863 & 0.794 & 2.79e+04 & 1.27 & 3.54 \\
+MSE & CountSketch & vanilla & 8.15 & 0.0854 & 1 & 2.91e+04 & 1.27 & -- \\
+MSE & CountSketch & oracle & 8.15 & 0.0726 & 0.785 & 2.05e+04 & 1.27 & -- \\
+MSE & CountSketch & proxy & 8.15 & 0.0681 & 0.794 & 1.89e+04 & 1.27 & 3.75 \\
+MSE & Uniform & vanilla & 8.15 & 0.0852 & 1 & 2.77e+04 & 1.39 & -- \\
+MSE & Uniform & oracle & 8.15 & 0.0803 & 0.721 & 2.68e+04 & 1.39 & -- \\
+MSE & Uniform & proxy & 8.15 & 0.0732 & 0.73 & 2.36e+04 & 1.39 & 3.62 \\
+MSE & Importance & vanilla & 8.15 & 0.0705 & 1 & 1.95e+04 & -- & -- \\
+\bottomrule
+\end{tabular}
+\caption{Stratified oracle and proxy (synth).}
+\label{tab:strat_synth}
+\end{table}
