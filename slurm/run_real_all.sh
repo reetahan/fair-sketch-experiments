@@ -27,7 +27,7 @@
 
 REPO="/scratch/rm6609/fair-sketch-experiments"
 HMDA_PATH="${REPO}/hmda_cache/hmda_CA_2018.csv"      # CA 2018 CSV from the FFIEC data browser (the API returned 403); "" = use the API
-ENEM_PATH="${REPO}/data/MICRODADOS_ENEM_2020.csv"    # INEP microdata; required for the ENEM tasks
+ENEM_PATH="${REPO}/local_data/DADOS/MICRODADOS_ENEM_2020.csv"    # INEP microdata (unzipped microdados_enem_2020.zip); required for the ENEM tasks
 SEED=0
 REG_REPS=200
 CLASS_REPS=60
@@ -69,7 +69,7 @@ SNAPSHOT_ROOT="${REPO}/.job_snapshots"
 SNAPSHOT_DIR="${SNAPSHOT_ROOT}/${SLURM_ARRAY_JOB_ID:-$$}_${TASK}_$(date +%s)"
 mkdir -p "$SNAPSHOT_DIR" || { echo "ERROR: failed to create snapshot dir $SNAPSHOT_DIR" >&2; exit 1; }
 rsync -a --exclude='__pycache__' --exclude='.git' --exclude='.job_snapshots' --exclude='results' --exclude='logs' \
-      --exclude='hmda_cache' --exclude='data' --exclude='*.csv' --exclude='*.parquet' "${REPO}/" "${SNAPSHOT_DIR}/" \
+      --exclude='hmda_cache' --exclude='data' --exclude='local_data' --exclude='*.csv' --exclude='*.parquet' "${REPO}/" "${SNAPSHOT_DIR}/" \
     || { echo "ERROR: failed to snapshot the code into $SNAPSHOT_DIR" >&2; exit 1; }
 mkdir -p "$OUT_DIR"
 
