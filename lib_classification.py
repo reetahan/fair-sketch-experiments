@@ -1,7 +1,7 @@
 
 import os
 import numpy as np, pandas as pd
-from fs_common import set_style, trim_x, plot_sd, save_method_table
+from fs_common import set_style, plot_sd, save_method_table
 
 sig = lambda t: 0.5 * (1 + np.tanh(0.5 * t))
 METH = ["samp_unif", "samp_imp", "newton_cs", "newton_gauss", "logreg_sketch", "naive_gauss", "naive_cs"]
@@ -185,26 +185,18 @@ PLOT_METH = [m for m in METH if m.startswith(("samp", "logreg"))]    # naive: ta
 NEWTON = ["newton_cs", "newton_gauss"]
 
 
-def class_ylab(j, met):
-    return ("size: mean |change| as a fraction of the exact\nmodel's value (0.1 = 10%)\nIF: |x~|/|x^| - 1;  rates: (|gap(x~)| - |gap(x^)|)/|gap(x^)|",
-            "direction: same, signed\n(>0: less fair than exact)")
-
-
-def draw(df, xcol, xlabel, path, meths=None, logx=True, trim=False, title="", min_base=0.03, floor=1e-6):
+def draw(df, xcol, xlabel, path, meths=None, logx=True, min_base=0.03, floor=1e-6):
     """Size/direction figure for classification (one line per method)."""
     meths = meths or PLOT_METH
-    if trim:
-        df = trim_x(df, xcol, logx, "method", meths)
     series = [dict(key=k, label=LAB[k], color=COL[k]) for k in meths]
-    plot_sd(df, xcol, xlabel, path, series, "method", MET, class_ylab, logx=logx, title=title, min_base=min_base,
-            mask_metrics=RATE_METRICS, floor=floor, tight_size=True, ylab_every_panel=False)
+    plot_sd(df, xcol, xlabel, path, series, "method", MET, logx=logx, min_base=min_base,
+            mask_metrics=RATE_METRICS, floor=floor, tight_size=True)
 
 
 def emit(out, name, df, spec, min_base=0.03):
-    """Save a sweep's CSV and draw its figure. spec = dict(x, label, logx, trim, meths, title)."""
+    """Save a sweep's CSV and draw its figure. spec = dict(x, label, logx, meths)."""
     df.to_csv(f"{out}/{name}.csv", index=False)
-    draw(df, spec["x"], spec["label"], f"{out}/{name}.png", meths=spec.get("meths"), logx=spec.get("logx", True),
-         trim=spec.get("trim", False), title=spec.get("title", name), min_base=min_base)
+    draw(df, spec["x"], spec["label"], f"{out}/{name}.png", meths=spec.get("meths"), logx=spec.get("logx", True), min_base=min_base)
 
 
 def replot(out, specs, min_base=0.03):
@@ -213,7 +205,7 @@ def replot(out, specs, min_base=0.03):
         f = f"{out}/{name}.csv"
         if os.path.exists(f):
             draw(pd.read_csv(f), spec["x"], spec["label"], f"{out}/{name}.png", meths=spec.get("meths"), logx=spec.get("logx", True),
-                 trim=spec.get("trim", False), title=spec.get("title", name), min_base=min_base)
+                 min_base=min_base)
 
 
 def replot_datasets(out, prefix, spec_fn, min_base=0.01):

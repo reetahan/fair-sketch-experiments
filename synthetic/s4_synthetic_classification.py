@@ -11,10 +11,10 @@ import lib_classification as cl
 from lib_classification import P, make_data, METH, PLOT_METH, NEWTON
 
 SPECS = {
-    "s4c_synth_m": dict(x="m", label="sketch size m", logx=True, trim=True, meths=PLOT_METH, title="classification, synthetic: vary m"),
-    "s4c_synth_gap": dict(x="gap", label="group feature shift", logx=False, meths=PLOT_METH, title="classification, synthetic: vary group shift"),
-    "s4c_synth_minority": dict(x="frac1", label="minority fraction", logx=False, meths=PLOT_METH, title="classification, synthetic: vary minority share"),
-    "s4c_synth_steps": dict(x="T", label="Newton steps", logx=False, trim=True, meths=NEWTON, title="classification, synthetic: Newton-Hessian, vary steps"),
+    "s4c_synth_m": dict(x="m", label="sketch size m", logx=True, meths=PLOT_METH),
+    "s4c_synth_gap": dict(x="gap", label="group shift", logx=False, meths=PLOT_METH),
+    "s4c_synth_minority": dict(x="frac1", label="minority fraction", logx=False, meths=PLOT_METH),
+    "s4c_synth_steps": dict(x="T", label="Newton steps", logx=False, meths=NEWTON),
 }
 
 

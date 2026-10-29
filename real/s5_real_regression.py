@@ -33,14 +33,14 @@ def main():
         if want("m"):
             ms = [x for x in [8 * rp.d, 16 * rp.d, 32 * rp.d, 64 * rp.d, 128 * rp.d, 256 * rp.d] if x < rp.n // 4]
             run_sweep_methods(f"s5_real_m_{rp.name}", ms, lambda x, p=rp: p, lambda x: x, lambda x, p=rp: max(2 * p.d + 2, min(args.m_pilot, x // 2)),
-                              reps, rng, out, "sketch size m", pilot_fam=args.pilot_fam, title=f"{rp.name}: vary m")
+                              reps, rng, out, "sketch size m", pilot_fam=args.pilot_fam)
     if want("ablate") and probs:
         base = probs[0]
         mm = min(m, base.n // 4)
         mp = max(2 * base.d + 2, min(args.m_pilot, mm // 2))
         for kind, vals in (("scale_col", [1, 3, 10, 30]), ("subsample0", [1.0, 0.5, 0.2, 0.1]), ("noise1", [0.0, 0.5, 1.0, 2.0])):
             run_sweep_methods(f"s5_real_ablate_{kind}", vals, lambda v, k=kind: alter(base, k, v, args.seed), lambda v: mm, lambda v: mp,
-                              reps, rng, out, kind, logx=(kind == "scale_col"), pilot_fam=args.pilot_fam, title=f"ablation of {base.name}: {kind}")
+                              reps, rng, out, ALTER_LABEL[kind], logx=(kind == "scale_col"), pilot_fam=args.pilot_fam)
     print(f"done in {time.time() - t0:.0f}s; outputs in {out}/")
 
 

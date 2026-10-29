@@ -26,7 +26,7 @@
 # Before the first run:  mkdir -p /scratch/rm6609/fair-sketch-experiments/logs
 
 REPO="/scratch/rm6609/fair-sketch-experiments"
-HMDA_PATH="${REPO}/hmda_cache/hmda_CA_2018.csv"      # CA 2018 CSV from the FFIEC data browser (the API returned 403); "" = use the API
+HMDA_PATH="${REPO}/local_data/hmda_CA_2018.csv"        # CA 2018 CSV from the FFIEC data browser (the API returned 403); "" = use the API
 ENEM_PATH="${REPO}/local_data/DADOS/MICRODADOS_ENEM_2020.csv"    # INEP microdata (unzipped microdados_enem_2020.zip); required for the ENEM tasks
 DIAB_PATH="${REPO}/local_data/diabetes_hospital.csv"  # Fairlearn frame (OpenML 43874, saved via sklearn fetch_openml; fairlearn is not installed); "" = fetch with fairlearn
 SEED=0

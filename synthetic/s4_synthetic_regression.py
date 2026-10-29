@@ -31,38 +31,31 @@ def main():
         print("[synth_m]")
         prob = synth()
         ms = sweep_pts(args, [4 * d, 8 * d, 16 * d, 32 * d, 64 * d, 128 * d, 256 * d], [4 * d, 16 * d, 64 * d, 256 * d])
-        run_sweep_sd("synth_m", ms, lambda x: prob, m, reps, rng, out, "sketch size m", extra_m=lambda x: x,
-                     title=f"synthetic: effect of sketch size (n={prob.n}, d={prob.d}, cond={prob.cond:.0f})")
+        run_sweep_sd("synth_m", ms, lambda x: prob, m, reps, rng, out, "sketch size m", extra_m=lambda x: x)
     if want("synth_kappa"):
         print("[synth_kappa]")
         ks = sweep_pts(args, [1, 3, 10, 30, 100, 300], [1, 10, 100])
-        run_sweep_sd("synth_kappa", ks, lambda x: synth(cond=float(x)), m, reps, rng, out, "condition number",
-                     title=f"synthetic: effect of condition number (m={m})")
+        run_sweep_sd("synth_kappa", ks, lambda x: synth(cond=float(x)), m, reps, rng, out, "condition number")
     if want("synth_gap"):
         print("[synth_gap]")
         gs = sweep_pts(args, [0.1, 0.3, 1, 3, 10], [0.1, 1, 10])
         for gd in ("top", "bottom"):
             run_sweep_sd(f"synth_gap_{gd}", gs, lambda x, gd=gd: synth(gap=float(x), gap_dir=gd), m, reps, rng, out,
-                         "size of average group difference",
-                         title=f"synthetic: effect of group difference along the {gd} singular direction (m={m})")
+                         "group mean gap")
     if want("synth_lev"):
         print("[synth_lev]")
         ls = sweep_pts(args, [0.0, 0.5, 1.0, 1.5, 2.0], [0.0, 1.0, 2.0])
-        run_sweep_sd("synth_lev", ls, lambda x: synth(lev=float(x)), m, reps, rng, out, "row-scale heterogeneity (lognormal sigma)", logx=False,
-                     title=f"synthetic: heavy-tailed leverage, all rows (m={m})")
+        run_sweep_sd("synth_lev", ls, lambda x: synth(lev=float(x)), m, reps, rng, out, "leverage spread σ", logx=False)
         run_sweep_sd("synth_lev_minority", ls, lambda x: synth(lev1=float(x), frac1=0.05), m, reps, rng, out,
-                     "minority row-scale heterogeneity (lognormal sigma)", logx=False,
-                     title=f"synthetic: heavy-tailed leverage in a 5% minority only (m={m})")
+                     "minority leverage spread σ", logx=False)
     if want("synth_spike"):
         print("[synth_spike]")
         ns = sweep_pts(args, [1, 3, 10, 30, 100], [1, 10, 100])
         ks = sweep_pts(args, [2, 3, 5, 10, 20, 50], [2, 10, 50])
         mk = {"outlier": lambda x: synth(spikes=2, spike_out=float(x)), "k": lambda x: synth(spikes=int(x), spike_out=100.0)}
         dfs = {"outlier": run_sweep_sd("synth_spike_outlier", ns, mk["outlier"], m, reps, rng, out,
-                                       "label outlier size on the 2 spike rows (x noise std)",
-                                       title=f"synthetic: coherent design, 2 minority spike rows (m={m})"),
-               "k": run_sweep_sd("synth_spike_k", ks, mk["k"], m, reps, rng, out, "number of spike rows k (leverage about 1/k each)",
-                                 title=f"synthetic: coherent design, spike outliers x100 (m={m})")}
+                                       "spike outlier size"),
+               "k": run_sweep_sd("synth_spike_k", ks, mk["k"], m, reps, rng, out, "spike rows k")}
         rows = []
         for kind, xs in (("outlier", ns), ("k", ks)):
             df = dfs[kind]

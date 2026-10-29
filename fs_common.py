@@ -555,6 +555,9 @@ def alter(prob, kind, val, seed=0):
     return Problem(A, b, g, f"{prob.name}|{kind}={val}")
 
 
+ALTER_LABEL = {"scale_col": "last-column shrink factor", "subsample0": "group-0 fraction kept", "noise1": "group-1 extra noise"}
+
+
 def fmt(x):
     if isinstance(x, str):
         return x
@@ -614,7 +617,8 @@ def save_strat_table(df, out, tag):
                    label=f"tab:strat_{tag}")
 
 
-def plot_vanilla_sweep(df, xcol, xlabel, path, logx=True, title=""):
+def plot_vanilla_sweep(df, xcol, xlabel, path, logx=True):
+    """Empirical mean distortion (solid) and Theorem 1 bound (dashed) per sketch family. No title: context goes in the caption."""
     fig, axes = plt.subplots(1, 3, figsize=(14, 3.8))
     for ax, met in zip(axes, METRICS):
         for fam in FAMS:
@@ -625,10 +629,9 @@ def plot_vanilla_sweep(df, xcol, xlabel, path, logx=True, title=""):
         ax.set_xscale("log" if logx else "linear")
         ax.set_yscale("log")
         ax.set_xlabel(tx(xlabel))
-        ax.set_title(met)
-    axes[0].set_ylabel("distortion")
+        ax.set_ylabel(f"{met}: distortion")
+    axes[0].plot([], [], "k--", label="Thm 1 bound")
     axes[0].legend(fontsize=8)
-    fig.suptitle(tx(f"{title}   (solid: empirical mean, dashed: Theorem 1 bound)"))
     style_axes(axes, _xt(df, xcol))
     fig.tight_layout()
     fig.savefig(path, dpi=140)
@@ -951,34 +954,44 @@ def save_method_table(df, path_stem, metric_order, method_order, method_label, c
         print(t[cols].round(3).to_string(index=False), flush=True)
 
 
-def trim_x(df, xcol, logx, series_col, keys, tol=0.05):
+def trim_x(df, xcol, logx, series_col, keys, tol=0.05, frac=1 / 3):
     """Keep x values up to the point where the region in which every plotted series is below `tol` (mean |relative change|,
-    all metrics) fills at most half of the axis (log or linear spacing). A series counts as converged from x* on if it stays
-    below tol for all larger x. If nothing converges inside the range, nothing is cut."""
+    all metrics) fills at most `frac` of the axis (log or linear spacing). Everything counts as converged from x* on if it
+    stays below tol for all larger x. Nothing is cut if the last point has not converged, or if every point has (no transition)."""
     xs = np.array(sorted(df[xcol].unique()), float)
     d = df[df[series_col].isin(keys)]
     ok = np.array([(d[d[xcol] == x]["mean_abs_rel"] <= tol).all() for x in xs])
-    if not ok[-1]:
+    if not ok[-1] or ok.all():
         return df
     first = next(i for i in range(len(xs)) if ok[i:].all())
     f = np.log if logx else (lambda v: v)
     lo, xstar = f(xs[0]), f(xs[first])
-    keep = xs[f(xs) - lo <= 2 * (xstar - lo) + 1e-12]
-    keep = keep if len(keep) > first else xs[: first + 1]
+    keep = xs[f(xs) - lo <= (xstar - lo) / (1 - frac) + 1e-12]       # (end - x*) <= frac * (end - lo)
     return df[df[xcol].isin(keep)]
 
 
-def plot_sd(df, xcol, xlabel, path, series, series_col, metrics, ylab, logx=True, title="", band=False, zero_label=None,
-            zero_color="k", min_base=None, mask_metrics=(), floor=None, tight_size=False, ylab_every_panel=True):
-    """Generic size/direction figure shared by regression and classification.
-    Row 1 (size): mean |relative change| vs the unsketched/exact solution, log y.  Row 2 (direction): mean signed relative change
+def sd_ylab(met):
+    return f"{met}: |rel. change|", f"{met}: rel. change"
+
+
+def plot_sd(df, xcol, xlabel, path, series, series_col, metrics, logx=True, band=False, zero_label=None,
+            zero_color="k", min_base=None, mask_metrics=(), floor=None, tight_size=False, trim=True, log_ratio=20.0):
+    """Generic size/direction figure shared by regression and classification. No title: context goes in the caption.
+    Row 1 (size): mean |relative change| vs the unsketched/exact solution.  Row 2 (direction): mean signed relative change
     (positive = less fair), optionally with a 10th-90th percentile band, and a zero line for the unsketched/exact solution.
+    The size row is linear from 0, unless its values in that panel span more than log_ratio (largest / smallest), then log.
+    When a panel is linear and nothing in the direction row is negative, both rows share one y range so heights compare directly.
       series        list of dict(key, label, color[, style]) ; the rows of df with df[series_col] == key
-      ylab(j, met)  returns (size label, direction label) for panel j
       min_base      with mask_metrics: omit points whose exact gap |base| is below this (relative change is meaningless there)
-      floor         omit points with size <= floor (exact zeros cannot sit on a log axis)
-      tight_size    scale the size row to the plotted data"""
-    fig, axes = plt.subplots(2, len(metrics), figsize=(3.6 * len(metrics) + 3.2, 6.5), sharex="col")
+      floor         on a log size row, omit points with size <= floor (exact zeros cannot sit on a log axis)
+      tight_size    on a log size row, scale it to the plotted data
+      trim          if every plotted series converges, cut the x axis so the converged part is at most 1/3 of it (trim_x)"""
+    if trim:
+        vis = df
+        if min_base is not None and "base" in df:
+            vis = df[~(df.metric.isin(mask_metrics) & (df["base"].abs() < min_base))]
+        df = df[df[xcol].isin(trim_x(vis, xcol, logx, series_col, [s["key"] for s in series])[xcol].unique())]
+    fig, axes = plt.subplots(2, len(metrics), figsize=(3.6 * len(metrics) + 2.0, 6.0), sharex="col")
     for j, met in enumerate(metrics):
         dm = df[df.metric == met]
         if min_base is not None and met in mask_metrics and "base" in dm:
@@ -987,13 +1000,15 @@ def plot_sd(df, xcol, xlabel, path, series, series_col, metrics, ylab, logx=True
                 axes[0, j].text(0.5, 0.5, f"exact gap below {min_base}:\nrelative change undefined", ha="center", va="center",
                                 transform=axes[0, j].transAxes, fontsize=9)
             dm = kept
+        curves = [(sr, dm[dm[series_col] == sr["key"]].sort_values(xcol)) for sr in series]
+        curves = [(sr, d) for sr, d in curves if not d.empty]
+        sizes = np.concatenate([d["mean_abs_rel"].values for _, d in curves]) if curves else np.array([])
+        nz = sizes[sizes > (floor or 0)]
+        logy = len(nz) > 0 and nz.max() > log_ratio * nz.min()     # linear unless the size row spans more than log_ratio
         ypos, dvals = [], []
-        for sr in series:
-            d = dm[dm[series_col] == sr["key"]].sort_values(xcol)
-            if d.empty:
-                continue
+        for sr, d in curves:
             st = sr.get("style", "o-")
-            pos = (d["mean_abs_rel"] > floor).values if floor is not None else np.ones(len(d), bool)
+            pos = (d["mean_abs_rel"] > floor).values if (logy and floor is not None) else np.ones(len(d), bool)
             axes[0, j].plot(d[xcol][pos], d["mean_abs_rel"][pos], st, color=sr["color"], label=sr["label"])
             axes[1, j].plot(d[xcol], d["mean_rel"], st, color=sr["color"])
             ypos += list(d["mean_abs_rel"][pos])
@@ -1002,36 +1017,34 @@ def plot_sd(df, xcol, xlabel, path, series, series_col, metrics, ylab, logx=True
                 axes[1, j].fill_between(d[xcol], d["q10_rel"], d["q90_rel"], color=sr["color"], alpha=0.11)
                 dvals += list(d["q10_rel"]) + list(d["q90_rel"])
         axes[1, j].axhline(0.0, color=zero_color, lw=1.2 if zero_label else 0.8, label=zero_label)
-        yl = robust_lim(np.array(dvals), q=(0, 100), include=0.0) if dvals else None
-        if yl:
-            axes[1, j].set_ylim(*yl)
-        if tight_size and ypos:
-            axes[0, j].set_ylim(min(ypos) / 1.6, max(ypos) * 1.6)
-        axes[0, j].set_yscale("log")
-        axes[0, j].set_title(met)
+        if logy:
+            axes[0, j].set_yscale("log")
+            if tight_size:
+                axes[0, j].set_ylim(min(ypos) / 1.6, max(ypos) * 1.6)
+        elif ypos:
+            axes[0, j].set_ylim(0, max(ypos) * 1.08)
+        if not logy and ypos and dvals and min(dvals) >= 0:              # both rows non-negative and linear: same y range
+            top = max(max(ypos), max(dvals)) * 1.08
+            axes[0, j].set_ylim(0, top)
+            axes[1, j].set_ylim(0, top)
+        elif dvals:
+            axes[1, j].set_ylim(*robust_lim(np.array(dvals), q=(0, 100), include=0.0))
         axes[1, j].set_xlabel(tx(xlabel))
         for i in range(2):
             axes[i, j].set_xscale("log" if logx else "linear")
-        if ylab_every_panel or j == 0:
-            a, b = ylab(j, met)
-            axes[0, j].set_ylabel(a, fontsize=8)
-            axes[1, j].set_ylabel(b, fontsize=8)
+        a, b = sd_ylab(met)
+        axes[0, j].set_ylabel(a)
+        axes[1, j].set_ylabel(b)
     axes[0, 0].legend(fontsize=7)
     if zero_label:
         axes[1, 0].legend(fontsize=7, loc="upper right")
     style_axes(axes, _xt(df, xcol))
-    fig.suptitle(tx(title))
     fig.tight_layout()
     fig.savefig(path, dpi=140)
     plt.close(fig)
 
 
-def reg_ylab(j, met):
-    return ("size, as a fraction of the OLS value (0.1 = 10%):\n" + YLAB[met][0],
-            "direction, as a fraction of the OLS value\n(>0: less fair than OLS):\n" + YLAB[met][1])
-
-
-def plot_size_direction(df, xcol, xlabel, path, logx=True, title=""):
+def plot_size_direction(df, xcol, xlabel, path, logx=True):
     """Regression, vanilla sketches: one line per sketch family. Rank-deficient sketches are excluded and noted in the legend."""
     first = df[df.metric == METRICS[0]]
     series = []
@@ -1041,10 +1054,10 @@ def plot_size_direction(df, xcol, xlabel, path, logx=True, title=""):
             continue
         ff = d["frac_failed"].max()
         series.append(dict(key=fam, color=COLOR[fam], label=FAM_LABEL[fam] + (f" (up to {100 * ff:.0f}% failed)" if ff > 0 else "")))
-    plot_sd(df, xcol, xlabel, path, series, "family", METRICS, reg_ylab, logx=logx, title=title, band=True)
+    plot_sd(df, xcol, xlabel, path, series, "family", METRICS, logx=logx, band=True)
 
 
-def run_sweep_sd(name, xs, builder, m, reps, rng, out, xlabel, logx=True, extra_m=None, title=None):
+def run_sweep_sd(name, xs, builder, m, reps, rng, out, xlabel, logx=True, extra_m=None):
     frames = []
     for x in xs:
         prob = builder(x)
@@ -1054,30 +1067,20 @@ def run_sweep_sd(name, xs, builder, m, reps, rng, out, xlabel, logx=True, extra_
         print(f"  {name} x={x}: done", flush=True)
     df = pd.concat(frames)
     df.to_csv(f"{out}/{name}.csv", index=False)
-    plot_size_direction(df, "x", xlabel, f"{out}/{name}.png", logx=logx, title=title or name)
+    plot_size_direction(df, "x", xlabel, f"{out}/{name}.png", logx=logx)
     return df
 
 
-YLAB = {
-    "IF":  ("mean $|\\,\\|\\tilde x\\|/\\|\\hat x\\| - 1\\,|$",
-            "mean $\\|\\tilde x\\|/\\|\\hat x\\| - 1$"),
-    "GFE": ("mean $|\\,(|v^\\top\\tilde x| - |v^\\top\\hat x|)\\,/\\,|v^\\top\\hat x|\\,|$",
-            "mean $(|v^\\top\\tilde x| - |v^\\top\\hat x|)\\,/\\,|v^\\top\\hat x|$"),
-    "MSE": ("mean $|\\,(|\\Delta\\tilde{\\rm mse}| - |\\Delta\\hat{\\rm mse}|)\\,/\\,\\Delta\\hat{\\rm mse}\\,|$",
-            "mean $(|\\Delta\\tilde{\\rm mse}| - |\\Delta\\hat{\\rm mse}|)\\,/\\,|\\Delta\\hat{\\rm mse}|$"),
-}
-
-
-def plot_methods_sd(df, xcol, xlabel, path, fam, logx=True, title=""):
+def plot_methods_sd(df, xcol, xlabel, path, fam, logx=True):
     """Regression, Section 5: unsketched (OLS, the zero line) vs vanilla sketch vs stratified oracle vs stratified proxy, for one family."""
     series = [dict(key="vanilla", color="k", style="x-", label="sketched (vanilla)"),
               dict(key="oracle", color="tab:green", style="o-", label="oracle"),
               dict(key="proxy", color="tab:purple", style="s-", label="proxy")]
-    plot_sd(df[df.family == fam], xcol, xlabel, path, series, "method", METRICS, reg_ylab, logx=logx,
-            title=f"{title}  [{FAM_LABEL[fam]} sketch]", band=True, zero_label="unsketched (OLS)", zero_color="tab:red")
+    plot_sd(df[df.family == fam], xcol, xlabel, path, series, "method", METRICS, logx=logx,
+            band=True, zero_label="unsketched (OLS)", zero_color="tab:red")
 
 
-def run_sweep_methods(name, xs, builder, mfun, mpfun, reps, rng, out, xlabel, logx=True, pilot_fam="gauss", title=None, fams=SFAMS):
+def run_sweep_methods(name, xs, builder, mfun, mpfun, reps, rng, out, xlabel, logx=True, pilot_fam="gauss", fams=SFAMS):
     frames = []
     for x in xs:
         prob = builder(x)
@@ -1088,7 +1091,7 @@ def run_sweep_methods(name, xs, builder, mfun, mpfun, reps, rng, out, xlabel, lo
     df = pd.concat(frames)
     df.to_csv(f"{out}/{name}.csv", index=False)
     for fam in fams:
-        plot_methods_sd(df, "x", xlabel, f"{out}/{name}_{fam}.png", fam, logx=logx, title=title or name)
+        plot_methods_sd(df, "x", xlabel, f"{out}/{name}_{fam}.png", fam, logx=logx)
     return df
 
 
@@ -1108,7 +1111,7 @@ def beta_table(prob):
     return pd.DataFrame(rows)
 
 
-def plot_beta_gain(df, path, title=""):
+def plot_beta_gain(df, path):
     """Oracle gain R = V/O (analytic) against group asymmetry omega = sqrt(beta_1/beta_0); R > 1 means the oracle beats the plain sketch."""
     fig, axes = plt.subplots(1, 3, figsize=(14, 4))
     for ax, met in zip(axes, METRICS):
@@ -1117,12 +1120,10 @@ def plot_beta_gain(df, path, title=""):
             ax.scatter(d["omega"], d["R"], s=22, alpha=0.7, color=COLOR[fam], label=FAM_LABEL[fam])
         ax.axhline(1.0, color="k", lw=0.8)
         ax.set_xscale("log")
-        ax.set_xlabel("group asymmetry  omega = sqrt(beta_1 / beta_0)")
-        ax.set_title(met)
-    axes[0].set_ylabel("oracle gain  R = V / O  (above 1: oracle better)")
+        ax.set_xlabel(r"$\omega = \sqrt{\beta_1 / \beta_0}$")
+        ax.set_ylabel(f"{met}: oracle gain $R = V/O$")
     axes[0].legend(fontsize=8)
     style_axes(axes)
-    fig.suptitle(tx(title))
     fig.tight_layout()
     fig.savefig(path, dpi=140)
     plt.close(fig)

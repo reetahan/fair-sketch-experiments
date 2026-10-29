@@ -34,28 +34,27 @@ def main():
         print("[m]")
         prob = synth(**kw)
         ms = sweep_pts(args, [8 * d, 16 * d, 32 * d, 64 * d, 128 * d, 256 * d], [16 * d, 64 * d, 256 * d])
-        run("m", ms, lambda x: prob, lambda x: x, lambda x: max(2 * d + 2, min(mp, x // 2)), "sketch size m", title=f"synthetic: vary m (cond={prob.cond:.0f})")
+        run("m", ms, lambda x: prob, lambda x: x, lambda x: max(2 * d + 2, min(mp, x // 2)), "sketch size m")
     if want("kappa"):
         print("[kappa]")
         ks = sweep_pts(args, [1, 3, 10, 30, 100, 300], [1, 10, 100])
-        run("kappa", ks, lambda x: synth(cond=float(x), **kw), lambda x: m, lambda x: mp, "condition number", title=f"synthetic: vary condition number (m={m})")
+        run("kappa", ks, lambda x: synth(cond=float(x), **kw), lambda x: m, lambda x: mp, "condition number")
     if want("gap"):
         print("[gap]")
         gs = sweep_pts(args, [0.1, 0.3, 1, 3, 10], [0.1, 1, 10])
-        run("gap", gs, lambda x: synth(gap=float(x), **kw), lambda x: m, lambda x: mp, "size of average group difference", title=f"synthetic: vary group difference (m={m})")
+        run("gap", gs, lambda x: synth(gap=float(x), **kw), lambda x: m, lambda x: mp, "group mean gap")
     if want("lev"):
         print("[lev]")
         ls = sweep_pts(args, [0.0, 0.5, 1.0, 1.5, 2.0], [0.0, 1.0, 2.0])
-        run("lev", ls, lambda x: synth(lev=float(x), **kw), lambda x: m, lambda x: mp, "row-scale heterogeneity (lognormal sigma)", logx=False,
-            title=f"synthetic: heavy-tailed leverage, all rows (m={m})")
+        run("lev", ls, lambda x: synth(lev=float(x), **kw), lambda x: m, lambda x: mp, "leverage spread σ", logx=False)
         run("lev_minority", ls, lambda x: synth(lev1=float(x), noise1=3.0, frac1=0.05), lambda x: m, lambda x: mp,
-            "minority row-scale heterogeneity (lognormal sigma)", logx=False, title=f"synthetic: heavy-tailed leverage in a 5% minority (m={m})")
+            "minority leverage spread σ", logx=False)
     if want("pilot"):
         print("[pilot]")
         prob = synth(**kw)
         ps = sweep_pts(args, [2 * d, 4 * d, 8 * d, 16 * d, 32 * d], [2 * d, 8 * d, 32 * d])
         mbig = max(m, 4 * max(ps))
-        run("pilot", ps, lambda x: prob, lambda x: mbig, lambda x: x, f"pilot size (m={mbig})", title="synthetic: vary pilot size")
+        run("pilot", ps, lambda x: prob, lambda x: mbig, lambda x: x, "pilot size")
     if want("beta"):
         print("[beta]")
         grid = ([("noise1", n1, dict(noise1=float(n1), frac1=0.5)) for n1 in [1, 2, 4, 8]]
@@ -73,7 +72,7 @@ def main():
         write_booktabs(df[df.family == "gauss"], ["varied", "value", "metric", "beta0", "beta1", "omega", "V", "O", "R"],
                        ["Varied", "Value", "Metric", "$\\beta_0$", "$\\beta_1$", "$\\omega$", "$V$", "$O$", "$R=V/O$"],
                        f"{out}/s5_beta.tex", caption="How group coefficients drive the oracle gain (Gaussian sketch).", label="tab:s5_beta")
-        plot_beta_gain(df, f"{out}/s5_beta.png", title="oracle gain vs group asymmetry (synthetic grid)")
+        plot_beta_gain(df, f"{out}/s5_beta.png")
     print(f"done in {time.time() - t0:.0f}s; outputs in {out}/")
 
 

@@ -11,8 +11,8 @@ from lib_data import real_class_problems, add_real_class_args
 
 
 def specs(name):
-    return {f"s4c_{name}_m": dict(x="m", label="sketch size m", logx=True, trim=True, meths=PLOT_METH, title=f"{name}: vary m"),
-            f"s4c_{name}_steps": dict(x="T", label="Newton steps", logx=False, trim=True, meths=NEWTON, title=f"{name}: Newton-Hessian, vary steps")}
+    return {f"s4c_{name}_m": dict(x="m", label="sketch size m", logx=True, meths=PLOT_METH),
+            f"s4c_{name}_steps": dict(x="T", label="Newton steps", logx=False, meths=NEWTON)}
 
 
 def main():

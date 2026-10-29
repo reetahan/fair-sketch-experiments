@@ -11,10 +11,10 @@ from lib_classification import P, make_data
 from lib_intervention import S5_METH, run_newton, DEFAULT_T
 
 SPECS = {
-    "s5c_synth_m": dict(x="m", label="sketch size m", logx=True, meths=S5_METH, title="classification, synthetic: vary m"),
-    "s5c_synth_steps": dict(x="T", label="Newton steps", logx=False, trim=True, meths=S5_METH, title="classification, synthetic: vary Newton steps"),
-    "s5c_synth_minority": dict(x="frac1", label="minority fraction", logx=False, meths=S5_METH, title="classification, synthetic: vary minority share"),
-    "s5c_synth_mis": dict(x="mis", label="group coefficient deviation", logx=False, meths=S5_METH, title="classification, synthetic: vary group model difference"),
+    "s5c_synth_m": dict(x="m", label="sketch size m", logx=True, meths=S5_METH),
+    "s5c_synth_steps": dict(x="T", label="Newton steps", logx=False, meths=S5_METH),
+    "s5c_synth_minority": dict(x="frac1", label="minority fraction", logx=False, meths=S5_METH),
+    "s5c_synth_mis": dict(x="mis", label="group model gap", logx=False, meths=S5_METH),
 }
 
 

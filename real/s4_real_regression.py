@@ -31,8 +31,7 @@ def main():
             save_vanilla_table(vanilla_table(rp, mm, reps, rng), out, f"bounds_{rp.name}")
         if want("real_m"):
             ms = [x for x in [4 * rp.d, 8 * rp.d, 16 * rp.d, 32 * rp.d, 64 * rp.d, 128 * rp.d, 256 * rp.d] if x < rp.n // 2]
-            run_sweep_sd(f"real_m_{rp.name}", ms, lambda x, p=rp: p, mm, reps, rng, out, "sketch size m", extra_m=lambda x: x,
-                         title=f"{rp.name}: effect of sketch size (n={rp.n}, d={rp.d}, cond={rp.cond:.0f})")
+            run_sweep_sd(f"real_m_{rp.name}", ms, lambda x, p=rp: p, mm, reps, rng, out, "sketch size m", extra_m=lambda x: x)
     if want("ablate") and probs:
         base = probs[0]
         mm = min(m, base.n // 4)
@@ -45,7 +44,7 @@ def main():
                 print(f"  ablate {kind}={v}: done", flush=True)
             dd = pd.concat(frames)
             dd.to_csv(f"{out}/ablate_vanilla_{kind}.csv", index=False)
-            plot_vanilla_sweep(dd, "x", kind, f"{out}/ablate_vanilla_{kind}.png", logx=(kind == "scale_col"), title=f"ablation of {base.name}: {kind}")
+            plot_vanilla_sweep(dd, "x", ALTER_LABEL[kind], f"{out}/ablate_vanilla_{kind}.png", logx=(kind == "scale_col"))
     print(f"done in {time.time() - t0:.0f}s; outputs in {out}/")
 
 
