@@ -229,3 +229,7 @@ logs/
 local_data/
 hmda_cache/
 data/
+# Generated outputs (figures, result tables)
+*.png
+*.csv
+*.tex
