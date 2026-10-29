@@ -127,6 +127,17 @@ def fit_logreg_sketch(A, m, rng, lam, clip=None, iters=8):
     return x
 
 
+def damped_step(p, x, step, gr, c=1e-4):
+    """x - t*step with Armijo backtracking on the exact objective p.f (t = 1, 1/2, 1/4, ...), as in the Newton sketch of
+    Pilanci & Wainwright (2017). A sketched Hessian can be far from H (m close to d), and the undamped step then diverges;
+    when the full step already decreases f enough it is taken unchanged. The sketched Hessian is positive definite, so -step
+    is a descent direction and the search ends."""
+    t, f0, slope = 1.0, p.f(x), gr @ step
+    while p.f(x - t * step) > f0 - c * t * slope and t > 1e-10:
+        t *= 0.5
+    return x - t * step
+
+
 def run(p, meth, m, rng, T=10):
     """One draw of approach 1 (samp_*), 2 (newton_*) or 3 (logreg_sketch, naive_*). Returns the sketched coefficient vector."""
     T = getattr(p, "T", T)
@@ -156,7 +167,7 @@ def run(p, meth, m, rng, T=10):
         else:
             SB = np.zeros((m, d))
             np.add.at(SB, rng.integers(0, m, n), B * rng.choice([-1.0, 1.0], n)[:, None])
-        x = x - np.linalg.solve(SB.T @ SB + lam * np.eye(d), gr)
+        x = damped_step(p, x, np.linalg.solve(SB.T @ SB + lam * np.eye(d), gr), gr)
     return x
 
 

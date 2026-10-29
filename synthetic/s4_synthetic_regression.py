@@ -45,9 +45,9 @@ def main():
     if want("synth_lev"):
         print("[synth_lev]")
         ls = sweep_pts(args, [0.0, 0.5, 1.0, 1.5, 2.0], [0.0, 1.0, 2.0])
-        run_sweep_sd("synth_lev", ls, lambda x: synth(lev=float(x)), m, reps, rng, out, "leverage spread σ", logx=False)
+        run_sweep_sd("synth_lev", ls, lambda x: synth(lev=float(x)), m, reps, rng, out, r"leverage spread $\sigma$", logx=False)
         run_sweep_sd("synth_lev_minority", ls, lambda x: synth(lev1=float(x), frac1=0.05), m, reps, rng, out,
-                     "minority leverage spread σ", logx=False)
+                     r"minority leverage spread $\sigma$", logx=False)
     if want("synth_spike"):
         print("[synth_spike]")
         ns = sweep_pts(args, [1, 3, 10, 30, 100], [1, 10, 100])

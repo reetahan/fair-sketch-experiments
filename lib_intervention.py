@@ -1,6 +1,6 @@
 
 import numpy as np
-from lib_classification import sig, LAB, COL
+from lib_classification import sig, LAB, COL, damped_step
 
 for k, (lab, col) in {"vanilla_cs": ("vanilla: Newton-Hessian, CountSketch", "tab:orange"),
                       "vanilla_gauss": ("vanilla: Newton-Hessian, Gaussian", "tab:green"),
@@ -66,5 +66,5 @@ def run_newton(p, meth, m, rng, T=None, gamma=0.2):
             Hs = _strat(B, u, h, Hi, groups, m, gamma, rng)
         Ht = Hs + lam * np.eye(d)
         Ht_inv = np.linalg.inv(Ht)
-        x = x - Ht_inv @ gr
+        x = damped_step(p, x, Ht_inv @ gr, gr)
     return x

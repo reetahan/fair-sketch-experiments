@@ -27,7 +27,7 @@ def main():
     t0 = time.time()
     for p in real_class_problems(a):
         p.T = a.T
-        m = min(a.m, p.n // 4)
+        m = min(max(a.m, 10 * p.d), p.n // 4)          # sketched Newton needs m well above d (ENEM: d = 145)
         sp = specs(p.name)
         print(f"[{p.name}] n={p.n} d={p.d} minority={p.g.mean():.3f} exact gaps:", {k: round(float(v), 4) for k, v in p.base.items()}, flush=True)
         cl.table(cl.experiment(p, m, a.reps, rng, meths=S5_METH, runner=run_newton), a.out, f"s5c_{p.name}_table", S5_METH,

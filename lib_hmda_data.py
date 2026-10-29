@@ -2,7 +2,6 @@
 import os, urllib.parse, urllib.request
 import numpy as np
 import pandas as pd
-import pyarrow.parquet as pq
 
 BASE = "https://ffiec.cfpb.gov/v2/data-browser-api/view/csv"
 WANT = {"action_taken", "derived_race", "derived_ethnicity", "derived_sex", "loan_amount", "income", "property_value",
@@ -81,6 +80,7 @@ def _as_text(df):
 
 
 def read_parquet(path, state):
+    import pyarrow.parquet as pq                 # only the 2024 parquet needs pyarrow (not in the job environment)
     cols = None
     names = set(pq.ParquetFile(path).schema_arrow.names)
     cols = sorted(WANT & names | ({"state_code"} & names))

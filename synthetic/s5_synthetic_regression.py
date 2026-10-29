@@ -46,9 +46,9 @@ def main():
     if want("lev"):
         print("[lev]")
         ls = sweep_pts(args, [0.0, 0.5, 1.0, 1.5, 2.0], [0.0, 1.0, 2.0])
-        run("lev", ls, lambda x: synth(lev=float(x), **kw), lambda x: m, lambda x: mp, "leverage spread σ", logx=False)
+        run("lev", ls, lambda x: synth(lev=float(x), **kw), lambda x: m, lambda x: mp, r"leverage spread $\sigma$", logx=False)
         run("lev_minority", ls, lambda x: synth(lev1=float(x), noise1=3.0, frac1=0.05), lambda x: m, lambda x: mp,
-            "minority leverage spread σ", logx=False)
+            r"minority leverage spread $\sigma$", logx=False)
     if want("pilot"):
         print("[pilot]")
         prob = synth(**kw)

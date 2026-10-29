@@ -971,7 +971,7 @@ def trim_x(df, xcol, logx, series_col, keys, tol=0.05, frac=1 / 3):
 
 
 def sd_ylab(met):
-    return f"{met}: |rel. change|", f"{met}: rel. change"
+    return f"{met}: $|$rel. change$|$", f"{met}: rel. change"      # math-mode bars: the SciencePlots serif font has no "|"
 
 
 def plot_sd(df, xcol, xlabel, path, series, series_col, metrics, logx=True, band=False, zero_label=None,
