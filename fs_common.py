@@ -766,21 +766,23 @@ def add_real_args(ap, acs_n=200000, hmda_n=200000):
     return ap
 
 
-def load_real(args, law_fn, acs_fn, hmda_fn):
-    """Load LSAC, ACS and HMDA (unless --no_law / --no_acs / --no_hmda). A failed load stops the run unless --allow_missing."""
+def load_real(args, law_fn, acs_fn, hmda_fn, extra=()):
+    """Load LSAC, ACS and HMDA (unless --no_law / --no_acs / --no_hmda), then any extra datasets, given as
+    (name, skip, fn(args), how_to_skip) tuples. A failed load stops the run unless --allow_missing."""
     out = []
-    for name, skip, fn in (("LSAC (law school)", args.no_law, lambda: law_fn(args)),
-                           (f"ACS {args.acs_state} {args.acs_year}", args.no_acs, lambda: acs_fn(args)),
-                           (f"HMDA {args.hmda_state} {args.hmda_year}", args.no_hmda, lambda: hmda_fn(args))):
+    for name, skip, fn, how in (("LSAC (law school)", args.no_law, law_fn, "pass --no_law"),
+                                (f"ACS {args.acs_state} {args.acs_year}", args.no_acs, acs_fn, "pass --no_acs"),
+                                (f"HMDA {args.hmda_state} {args.hmda_year}", args.no_hmda, hmda_fn, "pass --no_hmda"),
+                                *extra):
         if skip:
             continue
         print(f"loading {name} ...", flush=True)
         try:
-            out.append(fn())
+            out.append(fn(args))
         except Exception as e:
             msg = f"could not load {name} ({type(e).__name__}: {e})"
             if not args.allow_missing:
-                raise SystemExit(f"ERROR: {msg}. Fix the connection, or pass --no_law/--no_acs/--no_hmda to skip it, or --allow_missing to continue without it.")
+                raise SystemExit(f"ERROR: {msg}. Fix the connection or path, or {how} to skip it, or --allow_missing to continue without it.")
             print(f"WARNING: {msg}; continuing without it.", flush=True)
     return out
 
