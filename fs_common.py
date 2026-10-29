@@ -762,6 +762,13 @@ def add_real_args(ap, acs_n=200000, hmda_n=200000):
     ap.add_argument("--hmda_n", type=int, default=hmda_n, help="max HMDA rows (random subsample)")
     ap.add_argument("--hmda_group", default="race", choices=["race", "ethnicity", "sex"], help="race: Black vs White applicants")
     ap.add_argument("--hmda_path", default=None, help="local CSV from https://ffiec.cfpb.gov/data-browser/ instead of the API")
+    ap.add_argument("--diab", action="store_true", help="add Diabetes 130-US Hospitals")
+    ap.add_argument("--diab_path", default=None, help="local CSV of the Fairlearn frame; default fetches from OpenML")
+    ap.add_argument("--diab_n", type=int, default=50000)
+    ap.add_argument("--enem_path", default=None, help="MICRODADOS_ENEM_2020.csv from INEP; ENEM is skipped if unset")
+    ap.add_argument("--enem_group", default="race", choices=["race", "sex"])
+    ap.add_argument("--enem_score", default="NU_NOTA_CH", choices=["NU_NOTA_CH", "NU_NOTA_LC", "NU_NOTA_MT", "NU_NOTA_CN"])
+    ap.add_argument("--enem_n", type=int, default=50000)
     ap.add_argument("--allow_missing", action="store_true", help="warn and continue if a dataset cannot be loaded (default: stop)")
     return ap
 
@@ -803,10 +810,23 @@ def load_hmda_reg(args):
     return Problem(A, y, g, name)
 
 
+def load_diab_reg(args):
+    import lib_extra_data
+    return Problem(*lib_extra_data.load_diabetes(args.diab_n, args.seed, args.diab_path, "regression"))
+
+
+def load_enem_reg(args):
+    import lib_extra_data
+    return Problem(*lib_extra_data.load_enem(args.enem_path, args.enem_group, args.enem_score, args.enem_n, args.seed, "regression"))
+
+
 def real_problems(args):
-    """Regression versions of the real datasets (target: zfygpa for LSAC, log income for ACS, interest rate for HMDA)."""
+    """Regression versions of the real datasets (target: zfygpa for LSAC, log income for ACS, interest rate for HMDA,
+    length of stay for Diabetes (--diab), exam score for ENEM (--enem_path))."""
+    extra = [("Diabetes 130-US Hospitals", not args.diab, load_diab_reg, "drop --diab"),
+             (f"ENEM 2020 ({args.enem_path})", not args.enem_path, load_enem_reg, "drop --enem_path")]
     return load_real(args, lambda a: load_law("race", path=a.law_path),
-                     lambda a: load_acs(a.acs_state, a.acs_year, a.acs_n, a.acs_group, a.seed), load_hmda_reg)
+                     lambda a: load_acs(a.acs_state, a.acs_year, a.acs_n, a.acs_group, a.seed), load_hmda_reg, extra)
 
 
 def synth_builder(args):

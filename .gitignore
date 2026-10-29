@@ -222,3 +222,6 @@ __marimo__/
 
 *.parquet
 .DS_Store
+# SLURM job snapshots and logs
+.job_snapshots/
+logs/

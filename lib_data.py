@@ -57,12 +57,4 @@ def real_class_problems(args):
 
 
 def add_real_class_args(ap):
-    out = add_real_args(ap, acs_n=50000, hmda_n=50000)
-    ap.add_argument("--diab", action="store_true", help="add Diabetes 130-US Hospitals")
-    ap.add_argument("--diab_path", default=None, help="local CSV of the Fairlearn frame; default fetches from OpenML")
-    ap.add_argument("--diab_n", type=int, default=50000)
-    ap.add_argument("--enem_path", default=None, help="MICRODADOS_ENEM_2020.csv from INEP; ENEM is skipped if unset")
-    ap.add_argument("--enem_group", default="race", choices=["race", "sex"])
-    ap.add_argument("--enem_score", default="NU_NOTA_CH", choices=["NU_NOTA_CH", "NU_NOTA_LC", "NU_NOTA_MT", "NU_NOTA_CN"])
-    ap.add_argument("--enem_n", type=int, default=50000)
-    return out
+    return add_real_args(ap, acs_n=50000, hmda_n=50000)        # also adds --diab / --enem_path (shared with regression)
