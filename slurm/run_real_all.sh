@@ -21,13 +21,14 @@
 #   dataset  0 LSAC   1 ACS CA 2018   2 HMDA CA 2018   3 Diabetes 130-US   4 ENEM 2020
 #
 # The LSAC regression tasks (0 and 5) also run the ablations, which are defined on LSAC only (as before).
-# Subsets:  sbatch --array=0-4 slurm/run_real_all.sbatch       (all datasets, s4 regression)
-#           sbatch --array=3,8,13,18 slurm/run_real_all.sbatch (Diabetes, all four drivers)
+# Subsets:  sbatch --array=0-4 slurm/run_real_all.sh       (all datasets, s4 regression)
+#           sbatch --array=3,8,13,18 slurm/run_real_all.sh (Diabetes, all four drivers)
 # Before the first run:  mkdir -p /scratch/rm6609/fair-sketch-experiments/logs
 
 REPO="/scratch/rm6609/fair-sketch-experiments"
 HMDA_PATH="${REPO}/hmda_cache/hmda_CA_2018.csv"      # CA 2018 CSV from the FFIEC data browser (the API returned 403); "" = use the API
 ENEM_PATH="${REPO}/local_data/DADOS/MICRODADOS_ENEM_2020.csv"    # INEP microdata (unzipped microdados_enem_2020.zip); required for the ENEM tasks
+DIAB_PATH="${REPO}/local_data/diabetes_hospital.csv"  # Fairlearn frame (OpenML 43874, saved via sklearn fetch_openml; fairlearn is not installed); "" = fetch with fairlearn
 SEED=0
 REG_REPS=200
 CLASS_REPS=60
@@ -49,12 +50,16 @@ case "$DATASET" in
     acs)  DATA_ARGS="--no_law --no_hmda" ;;
     hmda) DATA_ARGS="--no_law --no_acs"
           [[ -n "$HMDA_PATH" ]] && DATA_ARGS="$DATA_ARGS --hmda_path $HMDA_PATH" ;;
-    diab) DATA_ARGS="--no_law --no_acs --no_hmda --diab" ;;
+    diab) DATA_ARGS="--no_law --no_acs --no_hmda --diab"
+          [[ -n "$DIAB_PATH" ]] && DATA_ARGS="$DATA_ARGS --diab_path $DIAB_PATH" ;;
     enem) DATA_ARGS="--no_law --no_acs --no_hmda --enem_path $ENEM_PATH"
           [[ -f "$ENEM_PATH" ]] || { echo "ERROR: ENEM file not found: $ENEM_PATH" >&2; exit 1; } ;;
 esac
 if [[ "$DATASET" == "hmda" && -n "$HMDA_PATH" && ! -f "$HMDA_PATH" ]]; then
     echo "ERROR: HMDA file not found: $HMDA_PATH (set HMDA_PATH=\"\" to use the API)" >&2; exit 1
+fi
+if [[ "$DATASET" == "diab" && -n "$DIAB_PATH" && ! -f "$DIAB_PATH" ]]; then
+    echo "ERROR: Diabetes file not found: $DIAB_PATH (set DIAB_PATH=\"\" to fetch with fairlearn)" >&2; exit 1
 fi
 
 # which experiments: regression drivers take --exp; ablations only on LSAC (they would overwrite each other otherwise)
