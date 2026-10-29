@@ -7,7 +7,7 @@ for k, (lab, col) in {"vanilla_cs": ("vanilla: Newton-Hessian, CountSketch", "ta
                       "oracle": ("oracle (stratified IS)", "tab:red"), "proxy": ("proxy (stratified IS)", "tab:purple")}.items():
     LAB[k], COL[k] = lab, col
 S5_METH = ["vanilla_cs", "vanilla_gauss", "oracle", "proxy"]
-DEFAULT_T = 3          # Newton steps used for the Section 5 comparison (the iteration converges to the exact model, so the comparison is transient)
+DEFAULT_T = 3         
 
 
 def _cs(B, m, rng):

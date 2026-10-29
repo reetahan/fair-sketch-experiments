@@ -69,18 +69,14 @@ def tx(s):
     return s
 
 FAMS = ["gauss", "cs", "unif", "is"]
-SFAMS = ["gauss", "cs", "unif"]          # families that have a stratified version
+SFAMS = ["gauss", "cs", "unif"]         
 METRICS = ["IF", "GFE", "MSE"]
 FAM_LABEL = {"gauss": "Gaussian", "cs": "CountSketch", "unif": "Uniform", "is": "Importance"}
 COLOR = {"gauss": "tab:blue", "cs": "tab:orange", "unif": "tab:green", "is": "tab:red"}
 LAW_URL = "https://raw.githubusercontent.com/damtharvey/law-school-dataset/main/law_dataset.csv"
 
 
-# ----------------------------------------------------------------------------------------------
-# Problem container
-# ----------------------------------------------------------------------------------------------
 class Problem:
-    """A (n x d) design A, response b, binary group labels g. Precomputes everything the theory uses."""
 
     def __init__(self, A, b, g, name=""):
         self.name = name
@@ -130,8 +126,6 @@ class Problem:
         return xt
 
     def solve_checked(self, SQ, tol=1e-6):
-        """(solution, ok). ok=False when the sketch is numerically rank-deficient on col([A b]) (e.g. uniform
-        sampling that misses a rare category); the solution is then meaningless and callers discard the run."""
         ok = bool(np.linalg.eigvalsh(SQ.T @ SQ)[0] > tol)
         return self.solve(SQ), ok
 
@@ -159,14 +153,9 @@ class Problem:
         return dist, J
 
 
-# ----------------------------------------------------------------------------------------------
-# Sketches (applied to the orthonormal basis Q of col([A b]); this is exact and avoids n x m matrices)
-# ----------------------------------------------------------------------------------------------
 def sketch_Q(Q, fam, m, rng, cdf=None, q=None):
     n, k = Q.shape
     if fam == "gauss":
-        # rows of S Q are iid N(0, Q^T Q / m) = N(0, I/m) since Q has orthonormal columns; exact in distribution
-        # (for a non-orthonormal block use strat helper below)
         return rng.standard_normal((m, k)) / np.sqrt(m)
     if fam == "cs":
         h = rng.integers(0, m, size=n)
@@ -204,9 +193,6 @@ def strat_SQ(prob, fam, m0, m1, rng):
     return np.vstack(blocks)
 
 
-# ----------------------------------------------------------------------------------------------
-# Theory: covariances (Lemma 2), bounds (Prop 1, Thm 1)
-# ----------------------------------------------------------------------------------------------
 def sigma_theory(prob, fam, m):
     r, P, G = prob.r, prob.P, prob.G
     rr = r @ r
@@ -252,11 +238,8 @@ def bounds(prob, fam, m, eps, eta=0.1):
         t_mse = (2 * (1 / n0 + 1 / n1) * (np.sqrt(4 * W / eta) + c * np.linalg.norm(prob.w) * np.sqrt(4 * T / eta))
                  + 8 / eta * sum((Qg[g] + prob.sig1 ** 2 * c ** 2 * T) / prob.ng[g] for g in (0, 1)))
         thm = {"IF": t_if, "GFE": t_gfe, "MSE": t_mse}
-        # kappa-free variant: keep the linearisation remainder in prediction space,
-        #   ||A(Delta - Delta')|| <= a ||A Delta'||,  a = eps/(1-eps)   (proof of Lemma 1, eq. (4)),
-        # and use |u^T y| <= sqrt(u^T (A^T A)^{-1} u) ||A y||.  No sigma_1 or kappa appears.
         a = eps / (1 - eps)
-        Z = np.trace(prob.gram[0] @ S) + np.trace(prob.gram[1] @ S)       # E||A Delta'||^2 = tr(A^T A Sigma)
+        Z = np.trace(prob.gram[0] @ S) + np.trace(prob.gram[1] @ S)       
         vGv, wGw = prob.v @ prob.G @ prob.v, prob.w @ prob.G @ prob.w
         k_if = (np.sqrt(T / eta) + a * np.sqrt(Z / eta) / prob.sigd) / np.linalg.norm(xh)
         k_gfe = np.sqrt(2 * V / eta) + a * np.sqrt(vGv) * np.sqrt(2 * Z / eta)
@@ -305,9 +288,6 @@ def vanilla_table(prob, m, reps, rng, delta=0.1, eta=0.1, fams=FAMS):
     return pd.DataFrame(rows)
 
 
-# ----------------------------------------------------------------------------------------------
-# Experiment 2: stratified oracle / proxy (Section 5)
-# ----------------------------------------------------------------------------------------------
 def coefs(prob, C, y, fam):
     """Group coefficients beta_g (Definition 2) and pieces, for target C and vector y (=r or pilot residual)."""
     out = []
@@ -575,9 +555,6 @@ def alter(prob, kind, val, seed=0):
     return Problem(A, b, g, f"{prob.name}|{kind}={val}")
 
 
-# ----------------------------------------------------------------------------------------------
-# Output helpers
-# ----------------------------------------------------------------------------------------------
 def fmt(x):
     if isinstance(x, str):
         return x

@@ -225,3 +225,7 @@ __marimo__/
 # SLURM job snapshots and logs
 .job_snapshots/
 logs/
+# Downloaded raw data (ENEM microdata, HMDA CSVs, caches)
+local_data/
+hmda_cache/
+data/

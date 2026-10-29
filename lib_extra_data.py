@@ -1,12 +1,7 @@
-"""Diabetes 130-US Hospitals and ENEM 2020, in the same shape as lib_hmda_data.load.
-load_diabetes / load_enem return (A, y, g, name): A has an intercept column first and standardised
-features, y is the regression target or a +-1 label, g is the 0/1 group.
-diab: one row per hospital encounter; regression target = length of stay (days), label = readmitted within
-      30 days; group 1 = African American vs Caucasian (other races dropped, as HMDA keeps only Black vs White).
-enem: one row per 2020 exam taker, filtered as in Alghamdi et al. (NeurIPS 2022); regression target = the
-      subject score, label = score above its median; group 1 = not White/Asian (race) or female (sex)."""
+
 import numpy as np
 import pandas as pd
+from pandas.api.types import union_categoricals
 from fs_common import _standardise
 
 DIAB_NUM = ["num_lab_procedures", "num_procedures", "num_medications", "number_diagnoses"]
@@ -20,7 +15,7 @@ ENEM_Q = [f"Q{i:03d}" for i in range(1, 25)]
 def _design(num, cat):
     D = pd.get_dummies(cat.astype(str), drop_first=True).astype(float)
     X = _standardise(pd.concat([num.astype(float), D], axis=1))
-    X = X.loc[:, X.std() > 0]                                  # drop dummies that are constant after subsampling
+    X = X.loc[:, X.std() > 0]                                
     X.insert(0, "intercept", 1.0)
     return X.values
 
@@ -33,9 +28,9 @@ def _subsample(df, n_max, seed):
 
 def load_diabetes(n_max=None, seed=0, path=None, task="classification"):
     if path:
-        df = pd.read_csv(path, keep_default_na=False, na_values=[""])   # "None" (test not done) is a real level, not NaN
+        df = pd.read_csv(path, keep_default_na=False, na_values=[""])   
     else:
-        from fairlearn.datasets import fetch_diabetes_hospital    # downloads from OpenML on first call
+        from fairlearn.datasets import fetch_diabetes_hospital  
         df = fetch_diabetes_hospital(as_frame=True).frame
     df = df[df["race"].isin(["AfricanAmerican", "Caucasian"])]
     df = df[df["gender"].isin(["Male", "Female"])].dropna(subset=DIAB_NUM + DIAB_CAT)
@@ -51,19 +46,22 @@ def load_diabetes(n_max=None, seed=0, path=None, task="classification"):
 def load_enem(path, group="race", score="NU_NOTA_CH", n_max=None, seed=0, task="classification"):
     cols = [score, "TP_COR_RACA", "TP_SEXO", "SG_UF_PROVA", "TP_FAIXA_ETARIA",
             "IN_TREINEIRO", "TP_ST_CONCLUSAO"] + ENEM_PRES + ENEM_Q
-    cat_dtypes = {c: "category" for c in ENEM_Q + ["TP_SEXO", "SG_UF_PROVA"] if c != "Q005"}   # ~5.8M rows: strings as categories
-    df = pd.read_csv(path, sep=";", encoding="latin-1", usecols=cols, dtype=cat_dtypes)
-    df = df[(df[ENEM_PRES] == 1).all(axis=1)]                   # present at all four exams
-    df = df[(df["IN_TREINEIRO"] == 0) & (df["TP_ST_CONCLUSAO"] == 1)]   # no practice or repeat takers
-    df = df[df["TP_COR_RACA"].between(1, 5)].dropna()           # race declared
-    med = df[score].median()                                     # threshold fixed before subsampling
+    cat_dtypes = {c: "category" for c in ENEM_Q + ["TP_SEXO", "SG_UF_PROVA"] if c != "Q005"}   
+    keep = []
+    for ch in pd.read_csv(path, sep=";", encoding="latin-1", usecols=cols, dtype=cat_dtypes, chunksize=500_000):   # 5.8M rows, ~2 GB: filter per chunk
+        ch = ch[(ch[ENEM_PRES] == 1).all(axis=1)]
+        ch = ch[(ch["IN_TREINEIRO"] == 0) & (ch["TP_ST_CONCLUSAO"] == 1)]
+        keep.append(ch[ch["TP_COR_RACA"].between(1, 5)].dropna())
+    df = pd.DataFrame({c: union_categoricals([ch[c] for ch in keep]) if isinstance(keep[0][c].dtype, pd.CategoricalDtype)
+                       else pd.concat([ch[c] for ch in keep], ignore_index=True) for c in cols})   # chunk categories differ
+    med = df[score].median()
     df = _subsample(df, n_max, seed)
     if group == "race":
-        g = (~df["TP_COR_RACA"].isin([1, 4])).astype(int).values    # 1 = Branca, 4 = Amarela
+        g = (~df["TP_COR_RACA"].isin([1, 4])).astype(int).values  
     else:
         g = (df["TP_SEXO"] == "F").astype(int).values
     num = pd.DataFrame({"household": df["Q005"].astype(float)})
-    if group == "race":                                          # the group attribute is never a feature
+    if group == "race":                                        
         num["female"] = (df["TP_SEXO"] == "F").astype(float)
     cat = df[["SG_UF_PROVA", "TP_FAIXA_ETARIA"] + [q for q in ENEM_Q if q != "Q005"]]
     A = _design(num, cat)

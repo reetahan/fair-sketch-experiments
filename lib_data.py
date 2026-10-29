@@ -1,9 +1,4 @@
-"""Real classification datasets as lib_classification.P problems, loaded with fs_common.load_real (LSAC, ACS California 2018 and HMDA California 2018 by default).
-law : LSAC, target pass_bar (1 = passed), group 1 = racetxt == 0 (the minority; racetxt == 1 is ~94% of rows, ASSUMED white: verify)
-acs : ACSIncome-style, target PINCP > 50000, group 1 = female (--acs_group sex) or non-white (race); read straight from the Census zip.
-hmda: home-purchase loans, target approved vs denied, group 1 = Black applicants vs White (--hmda_group); see lib_hmda_data.py.
-diab: Diabetes 130-US Hospitals (--diab), target readmitted within 30 days, group 1 = African American vs Caucasian; see lib_extra_data.py.
-enem: ENEM 2020 (--enem_path), target score above median, group 1 = not White/Asian (race) or female (--enem_group sex); see lib_extra_data.py."""
+
 import numpy as np
 import pandas as pd
 from fs_common import LAW_URL, _standardise, load_acs, load_real, add_real_args
