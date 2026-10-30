@@ -974,6 +974,25 @@ def sd_ylab(met):
     return f"{met}: $|$rel. change$|$", f"{met}: rel. change"      # math-mode bars: the SciencePlots serif font has no "|"
 
 
+def sd_layout(df, xcol, logx, series_col, keys, metrics, min_base=None, mask_metrics=(), floor=None, trim=True, log_ratio=20.0):
+    """What a size/direction figure shows, shared by plot_sd and the caption generator so they cannot disagree.
+    Returns (df trimmed to the plotted x values, {metric: (rows plotted in that panel, size row on a log axis?)})."""
+    if trim:
+        vis = df
+        if min_base is not None and "base" in df:
+            vis = df[~(df.metric.isin(mask_metrics) & (df["base"].abs() < min_base))]
+        df = df[df[xcol].isin(trim_x(vis, xcol, logx, series_col, keys)[xcol].unique())]
+    panels = {}
+    for met in metrics:
+        dm = df[(df.metric == met) & df[series_col].isin(keys)]
+        if min_base is not None and met in mask_metrics and "base" in dm:
+            dm = dm[dm["base"].abs() >= min_base]
+        sizes = dm["mean_abs_rel"].values
+        nz = sizes[sizes > (floor or 0)]
+        panels[met] = (dm, bool(len(nz) > 0 and nz.max() > log_ratio * nz.min()))   # linear unless the size row spans > log_ratio
+    return df, panels
+
+
 def plot_sd(df, xcol, xlabel, path, series, series_col, metrics, logx=True, band=False, zero_label=None,
             zero_color="k", min_base=None, mask_metrics=(), floor=None, tight_size=False, trim=True, log_ratio=20.0):
     """Generic size/direction figure shared by regression and classification. No title: context goes in the caption.
@@ -986,25 +1005,15 @@ def plot_sd(df, xcol, xlabel, path, series, series_col, metrics, logx=True, band
       floor         on a log size row, omit points with size <= floor (exact zeros cannot sit on a log axis)
       tight_size    on a log size row, scale it to the plotted data
       trim          if every plotted series converges, cut the x axis so the converged part is at most 1/3 of it (trim_x)"""
-    if trim:
-        vis = df
-        if min_base is not None and "base" in df:
-            vis = df[~(df.metric.isin(mask_metrics) & (df["base"].abs() < min_base))]
-        df = df[df[xcol].isin(trim_x(vis, xcol, logx, series_col, [s["key"] for s in series])[xcol].unique())]
+    df, panels = sd_layout(df, xcol, logx, series_col, [s["key"] for s in series], metrics, min_base, mask_metrics, floor, trim, log_ratio)
     fig, axes = plt.subplots(2, len(metrics), figsize=(3.6 * len(metrics) + 2.0, 6.0), sharex="col")
     for j, met in enumerate(metrics):
-        dm = df[df.metric == met]
-        if min_base is not None and met in mask_metrics and "base" in dm:
-            kept = dm[dm["base"].abs() >= min_base]
-            if kept.empty and not dm.empty:
-                axes[0, j].text(0.5, 0.5, f"exact gap below {min_base}:\nrelative change undefined", ha="center", va="center",
-                                transform=axes[0, j].transAxes, fontsize=9)
-            dm = kept
+        dm, logy = panels[met]
+        if dm.empty and not df[df.metric == met].empty:
+            axes[0, j].text(0.5, 0.5, f"exact gap below {min_base}:\nrelative change undefined", ha="center", va="center",
+                            transform=axes[0, j].transAxes, fontsize=9)
         curves = [(sr, dm[dm[series_col] == sr["key"]].sort_values(xcol)) for sr in series]
         curves = [(sr, d) for sr, d in curves if not d.empty]
-        sizes = np.concatenate([d["mean_abs_rel"].values for _, d in curves]) if curves else np.array([])
-        nz = sizes[sizes > (floor or 0)]
-        logy = len(nz) > 0 and nz.max() > log_ratio * nz.min()     # linear unless the size row spans more than log_ratio
         ypos, dvals = [], []
         for sr, d in curves:
             st = sr.get("style", "o-")
