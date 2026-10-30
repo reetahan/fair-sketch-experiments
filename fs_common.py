@@ -970,11 +970,12 @@ def trim_x(df, xcol, logx, series_col, keys, tol=0.05, frac=1 / 3):
     return df[df[xcol].isin(keep)]
 
 
-def sd_ylab(met):
-    return f"{met}: $|$rel. change$|$", f"{met}: rel. change"      # math-mode bars: the SciencePlots serif font has no "|"
+def sd_ylab(met, absolute=False):
+    w = "change" if absolute else "rel. change"
+    return f"{met}: $|${w}$|$", f"{met}: {w}"      # math-mode bars: the SciencePlots serif font has no "|"
 
 
-def sd_layout(df, xcol, logx, series_col, keys, metrics, min_base=None, mask_metrics=(), floor=None, trim=True, log_ratio=20.0):
+def sd_layout(df, xcol, logx, series_col, keys, metrics, min_base=None, mask_metrics=(), floor=None, trim=False, log_ratio=20.0):
     """What a size/direction figure shows, shared by plot_sd and the caption generator so they cannot disagree.
     Returns (df trimmed to the plotted x values, {metric: (rows plotted in that panel, size row on a log axis?)})."""
     if trim:
@@ -994,7 +995,7 @@ def sd_layout(df, xcol, logx, series_col, keys, metrics, min_base=None, mask_met
 
 
 def plot_sd(df, xcol, xlabel, path, series, series_col, metrics, logx=True, band=False, zero_label=None,
-            zero_color="k", min_base=None, mask_metrics=(), floor=None, tight_size=False, trim=True, log_ratio=20.0):
+            zero_color="k", min_base=None, mask_metrics=(), floor=None, tight_size=False, trim=False, log_ratio=20.0, abs_metrics=()):
     """Generic size/direction figure shared by regression and classification. No title: context goes in the caption.
     Row 1 (size): mean |relative change| vs the unsketched/exact solution.  Row 2 (direction): mean signed relative change
     (positive = less fair), optionally with a 10th-90th percentile band, and a zero line for the unsketched/exact solution.
@@ -1004,7 +1005,9 @@ def plot_sd(df, xcol, xlabel, path, series, series_col, metrics, logx=True, band
       min_base      with mask_metrics: omit points whose exact gap |base| is below this (relative change is meaningless there)
       floor         on a log size row, omit points with size <= floor (exact zeros cannot sit on a log axis)
       tight_size    on a log size row, scale it to the plotted data
-      trim          if every plotted series converges, cut the x axis so the converged part is at most 1/3 of it (trim_x)"""
+      trim          if every plotted series converges, cut the x axis so the converged part is at most 1/3 of it (trim_x);
+                    only for axes that converge to the exact solution (Newton steps), not for sketch size
+      abs_metrics   metrics whose columns hold absolute (not relative) changes, for the axis labels"""
     df, panels = sd_layout(df, xcol, logx, series_col, [s["key"] for s in series], metrics, min_base, mask_metrics, floor, trim, log_ratio)
     fig, axes = plt.subplots(2, len(metrics), figsize=(3.6 * len(metrics) + 2.0, 6.0), sharex="col")
     for j, met in enumerate(metrics):
@@ -1041,7 +1044,7 @@ def plot_sd(df, xcol, xlabel, path, series, series_col, metrics, logx=True, band
         axes[1, j].set_xlabel(tx(xlabel))
         for i in range(2):
             axes[i, j].set_xscale("log" if logx else "linear")
-        a, b = sd_ylab(met)
+        a, b = sd_ylab(met, met in abs_metrics)
         axes[0, j].set_ylabel(a)
         axes[1, j].set_ylabel(b)
     axes[0, 0].legend(fontsize=7)
@@ -1085,6 +1088,10 @@ def plot_methods_sd(df, xcol, xlabel, path, fam, logx=True):
     series = [dict(key="vanilla", color="k", style="x-", label="sketched (vanilla)"),
               dict(key="oracle", color="tab:green", style="o-", label="oracle"),
               dict(key="proxy", color="tab:purple", style="s-", label="proxy")]
+    if df[df.family == fam][xcol].nunique() < 2:       # almost every run of this sketch was rank-deficient: nothing to plot
+        if os.path.exists(path):
+            os.remove(path)
+        return
     plot_sd(df[df.family == fam], xcol, xlabel, path, series, "method", METRICS, logx=logx,
             band=True, zero_label="unsketched (OLS)", zero_color="tab:red")
 

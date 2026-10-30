@@ -31,7 +31,7 @@ def main():
         print(f"[{p.name}] n={p.n} d={p.d} minority={p.g.mean():.3f} exact gaps:", {k: round(float(v), 4) for k, v in p.base.items()}, flush=True)
         cl.table(cl.experiment(p, m, a.reps, rng), a.out, f"s4c_{p.name}_table", METH,
                  f"{p.name} (m={m}): distortion relative to the exact logistic model; positive = less fair.")
-        ms = [x for x in [4 * p.d * 2 ** i for i in range(7)] if x < p.n // 4]
+        ms = [x for x in [5 * p.d * 2 ** i for i in range(7)] if x < p.n // 4]     # m >= 5d: smaller m gives degenerate fits
         cl.emit(a.out, f"s4c_{p.name}_m", cl.sweep(lambda x: p, ms, "m", a.reps, rng, m, PLOT_METH), sp[f"s4c_{p.name}_m"], a.min_base)
         cl.emit(a.out, f"s4c_{p.name}_steps", cl.sweep(lambda x: p, [1, 2, 3, 4, 6], "T", a.reps, rng, m, NEWTON), sp[f"s4c_{p.name}_steps"], a.min_base)
     print(f"done in {time.time() - t0:.0f}s; outputs in {a.out}/")

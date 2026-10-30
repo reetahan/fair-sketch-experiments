@@ -1,7 +1,8 @@
 
 import os
 import numpy as np, pandas as pd
-from fs_common import set_style, plot_sd, save_method_table
+from fs_common import set_style, plot_sd, sd_layout, save_method_table
+from lib_logreg_sketch import fit_logreg_sketch_code
 
 sig = lambda t: 0.5 * (1 + np.tanh(0.5 * t))
 METH = ["samp_unif", "samp_imp", "newton_cs", "newton_gauss", "logreg_sketch", "naive_gauss", "naive_cs"]
@@ -127,11 +128,11 @@ def fit_logreg_sketch(A, m, rng, lam, clip=None, iters=8):
     return x
 
 
-def damped_step(p, x, step, gr, c=1e-4):
+def damped_step(p, x, step, gr, c=0.1):
     """x - t*step with Armijo backtracking on the exact objective p.f (t = 1, 1/2, 1/4, ...), as in the Newton sketch of
     Pilanci & Wainwright (2017). A sketched Hessian can be far from H (m close to d), and the undamped step then diverges;
     when the full step already decreases f enough it is taken unchanged. The sketched Hessian is positive definite, so -step
-    is a descent direction and the search ends."""
+    is a descent direction and the search ends. c = 0.1 and halving are the values Pilanci & Wainwright give (Sec. 2.1, footnote 1)."""
     t, f0, slope = 1.0, p.f(x), gr @ step
     while p.f(x - t * step) > f0 - c * t * slope and t > 1e-10:
         t *= 0.5
@@ -147,9 +148,11 @@ def run(p, meth, m, rng, T=10):
         idx = rng.choice(n, m, p=q)
         return fit(p.A[idx], 1.0 / (m * q[idx]), lam)
     if meth == "logreg_sketch":
-        return fit_logreg_sketch(p.A, m, rng, lam)
+        return fit_logreg_sketch_code(p.A, m, rng, lam)                 # authors' code version (lib_logreg_sketch.py)
     if meth == "logreg_sketch_ky":
-        return fit_logreg_sketch(p.A, m, rng, lam, clip=0.25)
+        return fit_logreg_sketch_code(p.A, m, rng, lam, clip=0.25)
+    if meth == "logreg_sketch_paper":
+        return fit_logreg_sketch(p.A, m, rng, lam)                      # paper-text version, kept for comparison
     if meth.startswith("naive"):
         if meth == "naive_gauss":
             SA = rng.standard_normal((m, n)) @ p.A / np.sqrt(m)
@@ -196,12 +199,27 @@ PLOT_METH = [m for m in METH if m.startswith(("samp", "logreg"))]    # naive: ta
 NEWTON = ["newton_cs", "newton_gauss"]
 
 
+def class_view(df, xcol, logx, meths, min_base=0.03, floor=1e-6):
+    """What a classification figure plots. IF stays relative to the exact model's norm; the DP/TPR/FPR gaps are shown as
+    ABSOLUTE changes |gap(x~)| - |gap(x^)| (= relative change * |base|), so small exact gaps no longer leave empty panels.
+    A Newton-steps axis is trimmed after convergence, judged on relative change where the exact gap is at least min_base;
+    sketch-size axes are never trimmed."""
+    if xcol == "T":
+        kept, _ = sd_layout(df, xcol, logx, "method", meths, MET, min_base, RATE_METRICS, floor, trim=True)
+        df = df[df[xcol].isin(kept[xcol].unique())]
+    df = df.copy()
+    rate = df.metric.isin(RATE_METRICS)
+    for c in ("mean_rel", "mean_abs_rel", "q10_rel", "q90_rel"):
+        df.loc[rate, c] = df.loc[rate, c] * df.loc[rate, "base"].abs()
+    return df
+
+
 def draw(df, xcol, xlabel, path, meths=None, logx=True, min_base=0.03, floor=1e-6):
     """Size/direction figure for classification (one line per method)."""
     meths = meths or PLOT_METH
     series = [dict(key=k, label=LAB[k], color=COL[k]) for k in meths]
-    plot_sd(df, xcol, xlabel, path, series, "method", MET, logx=logx, min_base=min_base,
-            mask_metrics=RATE_METRICS, floor=floor, tight_size=True)
+    plot_sd(class_view(df, xcol, logx, meths, min_base, floor), xcol, xlabel, path, series, "method", MET, logx=logx,
+            floor=floor, tight_size=True, abs_metrics=RATE_METRICS)
 
 
 def emit(out, name, df, spec, min_base=0.03):

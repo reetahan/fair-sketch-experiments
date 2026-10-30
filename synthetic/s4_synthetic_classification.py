@@ -36,7 +36,7 @@ def main():
     sw = set(a.sweep.split(","))
     q = a.quick
     if "m" in sw:
-        ms = [4 * a.d, 16 * a.d, 64 * a.d, 256 * a.d] if q else [4 * a.d * 2 ** i for i in range(7)]
+        ms = [5 * a.d, 20 * a.d, 80 * a.d, 320 * a.d] if q else [5 * a.d * 2 ** i for i in range(7)]     # m >= 5d
         cl.emit(a.out, "s4c_synth_m", cl.sweep(lambda x: p, ms, "m", a.reps, rng, a.m, PLOT_METH), SPECS["s4c_synth_m"])
     if "gap" in sw:
         gs = [0.5, 2.0, 3.5] if q else [0.5, 1.0, 2.0, 3.0, 4.0]
