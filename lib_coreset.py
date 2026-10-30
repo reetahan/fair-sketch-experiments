@@ -14,11 +14,13 @@ Methods (run_coreset):
   c_strat_unif      uniform within each group, Neyman split of the uniform beta_g
   c_imp             Section 3 importance sampling, p.q_imp (needs x^)
   c_tgt_oracle      targeted, scores at x^ (needs x^)
-  c_tgt_proxy       targeted, scores from a uniform pilot of m_p rows; main sample has m - m_p rows (the pilot is charged to the budget)
+  c_tgt_proxy       targeted, scores from a uniform pilot of m_p rows; main sample has m - m_p rows (the pilot is charged to the budget).
+                    The pilot rows are kept in the final fit (p.reuse_pilot, default True): weights f*w_pilot + (1-f)*w_main with
+                    f = m_p/m, so E[W] = I and m E[(u'Delta')^2] = f V(uniform) + (1-f) E V(q_hat) to leading order.
   c_strat_tgt_oracle / c_strat_tgt_proxy   the same probabilities within each group, split m_g ~ sqrt(beta_g) (Theorem "stratifying never hurts")
   logreg_code       LogReg-sketch, authors' code version (lib_logreg_sketch); logreg_code_ky: with the Ky Fan clipped loss
   newton_cs / newton_gauss   Newton sketch reference, p.T steps (lib_classification.run)
-Problem attributes read if present: p.target, p.mu, p.m_p (pilot rows; default m // 4)."""
+Problem attributes read if present: p.target, p.mu, p.m_p (pilot rows; default m // 4), p.reuse_pilot (default True)."""
 import numpy as np
 import lib_classification as cl
 from lib_classification import sig, LAB, COL, fit
@@ -77,7 +79,7 @@ def _pilot(p, m_p, rng):
     xp = fit(p.A[I], w, p.lam)
     s = sig(p.A[I] @ xp)
     Hh = (p.Z[I] * (w * s * (1 - s))[:, None]).T @ p.Z[I] + p.lam * np.eye(p.d)
-    return xp, Hh
+    return xp, Hh, I, w
 
 
 def _strat(p, a, K, m, mu, rng):
@@ -120,7 +122,7 @@ def run_coreset(p, meth, m, rng, T=None):
         if proxy:
             m_p = getattr(p, "m_p", None) or m // 4
             mm = m - m_p
-            xp, Hh = _pilot(p, m_p, rng)
+            xp, Hh, Ip, wp = _pilot(p, m_p, rng)
             a, K = scores(p, xp, Hh, target)
         else:
             a, K = scores(p, p.xh, p.H, target)
@@ -128,4 +130,7 @@ def run_coreset(p, meth, m, rng, T=None):
             I, w = _strat(p, a, K, mm, mu, rng)
         else:
             I, w = _draw(_mix(a, mu), mm, rng)
+        if proxy and getattr(p, "reuse_pilot", True):
+            f = m_p / m
+            I, w = np.concatenate([Ip, I]), np.concatenate([f * wp, (1 - f) * w])   # repeated indices just add in fit()
     return fit(p.A[I], w, p.lam)
