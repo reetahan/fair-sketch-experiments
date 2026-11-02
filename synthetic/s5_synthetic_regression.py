@@ -1,16 +1,11 @@
 #!/usr/bin/env python3
-"""Section 5, regression, synthetic data: unsketched (OLS) vs vanilla sketch vs stratified oracle vs stratified proxy.
-  --exp table | m | kappa | gap | lev | pilot | beta | all
-  table  one setting, all metrics and families            -> strat_synth.{csv,tex}
-  m, kappa, gap, lev, pilot  sweeps                        -> figure per sketch family (OLS is the zero line)
-  beta   how the group coefficients beta_g (noise ratio, group model difference, minority share, group gap) drive the oracle gain R = V/O
-Outputs: strat_synth.*, s5_synth_<sweep>_<family>.png, s5_beta.{csv,tex,png}
-Usage: python reg_s5_synth.py --out results/reg_s5_synth --reps 200 [--quick] [--exp m,beta]"""
+"""Section 5 regression on synthetic data."""
 import argparse, time
 import numpy as np
 import pandas as pd
 import os, sys
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))   # library modules live at the repo root
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 from fs_common import *
 
 
@@ -23,9 +18,10 @@ def main():
     want = lambda e: "all" in exps or e in exps
     synth = synth_builder(args)
     m, mp, reps, d, out = args.m, args.m_pilot, args.reps, args.d, args.out
-    kw = dict(noise1=3.0, frac1=0.5)       # heteroskedastic, balanced groups, so that stratification matters
-    run = lambda name, xs, builder, mfun, mpfun, xlabel, **k: run_sweep_methods(f"s5_synth_{name}", xs, builder, mfun, mpfun, reps, rng, out, xlabel,
-                                                                                  pilot_fam=args.pilot_fam, **k)
+    kw = dict(noise1=3.0, frac1=0.5)
+    run = lambda name, xs, builder, mfun, mpfun, xlabel, **k: run_sweep_methods(
+        f"s5_synth_{name}", xs, builder, mfun, mpfun, reps, rng, out, xlabel, pilot_fam=args.pilot_fam, **k
+    )
     t0 = time.time()
     if want("table"):
         print("[table]")
@@ -46,9 +42,24 @@ def main():
     if want("lev"):
         print("[lev]")
         ls = sweep_pts(args, [0.0, 0.5, 1.0, 1.5, 2.0], [0.0, 1.0, 2.0])
-        run("lev", ls, lambda x: synth(lev=float(x), **kw), lambda x: m, lambda x: mp, r"leverage spread $\sigma$", logx=False)
-        run("lev_minority", ls, lambda x: synth(lev1=float(x), noise1=3.0, frac1=0.05), lambda x: m, lambda x: mp,
-            r"minority leverage spread $\sigma$", logx=False)
+        run(
+            "lev",
+            ls,
+            lambda x: synth(lev=float(x), **kw),
+            lambda x: m,
+            lambda x: mp,
+            r"leverage spread $\sigma$",
+            logx=False,
+        )
+        run(
+            "lev_minority",
+            ls,
+            lambda x: synth(lev1=float(x), noise1=3.0, frac1=0.05),
+            lambda x: m,
+            lambda x: mp,
+            r"minority leverage spread $\sigma$",
+            logx=False,
+        )
     if want("pilot"):
         print("[pilot]")
         prob = synth(**kw)
@@ -57,10 +68,12 @@ def main():
         run("pilot", ps, lambda x: prob, lambda x: mbig, lambda x: x, "pilot size")
     if want("beta"):
         print("[beta]")
-        grid = ([("noise1", n1, dict(noise1=float(n1), frac1=0.5)) for n1 in [1, 2, 4, 8]]
-                + [("mis", v, dict(noise1=3.0, frac1=0.5, mis=v)) for v in [0.0, 0.5, 1.0, 2.0]]
-                + [("frac1", f1, dict(noise1=3.0, frac1=f1)) for f1 in [0.05, 0.1, 0.2, 0.35, 0.5]]
-                + [("gap", gp, dict(noise1=3.0, frac1=0.5, gap=float(gp))) for gp in [0.1, 1, 10]])
+        grid = (
+            [("noise1", n1, dict(noise1=float(n1), frac1=0.5)) for n1 in [1, 2, 4, 8]]
+            + [("mis", v, dict(noise1=3.0, frac1=0.5, mis=v)) for v in [0.0, 0.5, 1.0, 2.0]]
+            + [("frac1", f1, dict(noise1=3.0, frac1=f1)) for f1 in [0.05, 0.1, 0.2, 0.35, 0.5]]
+            + [("gap", gp, dict(noise1=3.0, frac1=0.5, gap=float(gp))) for gp in [0.1, 1, 10]]
+        )
         rows = []
         for var, val, kws in grid:
             bt = beta_table(synth(**kws))
@@ -69,9 +82,14 @@ def main():
             rows.append(bt)
         df = pd.concat(rows)
         df.to_csv(f"{out}/s5_beta.csv", index=False)
-        write_booktabs(df[df.family == "gauss"], ["varied", "value", "metric", "beta0", "beta1", "omega", "V", "O", "R"],
-                       ["Varied", "Value", "Metric", "$\\beta_0$", "$\\beta_1$", "$\\omega$", "$V$", "$O$", "$R=V/O$"],
-                       f"{out}/s5_beta.tex", caption="How group coefficients drive the oracle gain (Gaussian sketch).", label="tab:s5_beta")
+        write_booktabs(
+            df[df.family == "gauss"],
+            ["varied", "value", "metric", "beta0", "beta1", "omega", "V", "O", "R"],
+            ["Varied", "Value", "Metric", "$\\beta_0$", "$\\beta_1$", "$\\omega$", "$V$", "$O$", "$R=V/O$"],
+            f"{out}/s5_beta.tex",
+            caption="How group coefficients drive the oracle gain (Gaussian sketch).",
+            label="tab:s5_beta",
+        )
         plot_beta_gain(df, f"{out}/s5_beta.png")
     print(f"done in {time.time() - t0:.0f}s; outputs in {out}/")
 

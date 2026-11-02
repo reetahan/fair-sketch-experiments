@@ -1,19 +1,10 @@
 #!/usr/bin/env python3
-"""Section 4, regression, synthetic data: distortion of IF, GFE and MSE parity by the four sketch families (Gaussian, CountSketch, uniform, importance).
-  --exp synth_m | synth_kappa | synth_gap | synth_lev | synth_spike | bounds_table | all
-  synth_m       vary sketch size m                         -> size/direction figure
-  synth_kappa   vary condition number                      -> size/direction figure
-  synth_gap     vary group mean difference (top and bottom singular direction) -> two figures
-  synth_lev     vary leverage heterogeneity (all rows; minority only) -> two figures
-  synth_spike   coherent design (k high-leverage, high-residual minority rows): vary the spike outlier size, and the number of spikes -> two figures
-                + synth_spike_theory.csv (max leverage, the Lemma-2 CountSketch/Gaussian variance ratio, and the empirical CS/Gaussian ratio of mean distortion, per point)
-  bounds_table  Prop 1 and Thm 1 bounds vs empirical distortion      -> table
-Outputs: synth_*.{csv,png}, table_bounds_synth.{csv,tex}
-Usage: python reg_s4_synth.py --out results/reg_s4_synth --reps 200 [--quick] [--exp synth_m,bounds_table]"""
+"""Section 4 regression on synthetic data."""
 import argparse, time
 import numpy as np
 import os, sys
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))   # library modules live at the repo root
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 from fs_common import *
 
 
@@ -40,22 +31,45 @@ def main():
         print("[synth_gap]")
         gs = sweep_pts(args, [0.1, 0.3, 1, 3, 10], [0.1, 1, 10])
         for gd in ("top", "bottom"):
-            run_sweep_sd(f"synth_gap_{gd}", gs, lambda x, gd=gd: synth(gap=float(x), gap_dir=gd), m, reps, rng, out,
-                         "group mean gap")
+            run_sweep_sd(
+                f"synth_gap_{gd}",
+                gs,
+                lambda x, gd=gd: synth(gap=float(x), gap_dir=gd),
+                m,
+                reps,
+                rng,
+                out,
+                "group mean gap",
+            )
     if want("synth_lev"):
         print("[synth_lev]")
         ls = sweep_pts(args, [0.0, 0.5, 1.0, 1.5, 2.0], [0.0, 1.0, 2.0])
-        run_sweep_sd("synth_lev", ls, lambda x: synth(lev=float(x)), m, reps, rng, out, r"leverage spread $\sigma$", logx=False)
-        run_sweep_sd("synth_lev_minority", ls, lambda x: synth(lev1=float(x), frac1=0.05), m, reps, rng, out,
-                     r"minority leverage spread $\sigma$", logx=False)
+        run_sweep_sd(
+            "synth_lev", ls, lambda x: synth(lev=float(x)), m, reps, rng, out, r"leverage spread $\sigma$", logx=False
+        )
+        run_sweep_sd(
+            "synth_lev_minority",
+            ls,
+            lambda x: synth(lev1=float(x), frac1=0.05),
+            m,
+            reps,
+            rng,
+            out,
+            r"minority leverage spread $\sigma$",
+            logx=False,
+        )
     if want("synth_spike"):
         print("[synth_spike]")
         ns = sweep_pts(args, [1, 3, 10, 30, 100], [1, 10, 100])
         ks = sweep_pts(args, [2, 3, 5, 10, 20, 50], [2, 10, 50])
-        mk = {"outlier": lambda x: synth(spikes=2, spike_out=float(x)), "k": lambda x: synth(spikes=int(x), spike_out=100.0)}
-        dfs = {"outlier": run_sweep_sd("synth_spike_outlier", ns, mk["outlier"], m, reps, rng, out,
-                                       "spike outlier size"),
-               "k": run_sweep_sd("synth_spike_k", ks, mk["k"], m, reps, rng, out, "spike rows k")}
+        mk = {
+            "outlier": lambda x: synth(spikes=2, spike_out=float(x)),
+            "k": lambda x: synth(spikes=int(x), spike_out=100.0),
+        }
+        dfs = {
+            "outlier": run_sweep_sd("synth_spike_outlier", ns, mk["outlier"], m, reps, rng, out, "spike outlier size"),
+            "k": run_sweep_sd("synth_spike_k", ks, mk["k"], m, reps, rng, out, "spike rows k"),
+        }
         rows = []
         for kind, xs in (("outlier", ns), ("k", ks)):
             df = dfs[kind]

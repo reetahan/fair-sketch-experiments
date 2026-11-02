@@ -1,13 +1,15 @@
-
 import numpy as np
 from lib_classification import sig, LAB, COL, damped_step
 
-for k, (lab, col) in {"vanilla_cs": ("vanilla: Newton-Hessian, CountSketch", "tab:orange"),
-                      "vanilla_gauss": ("vanilla: Newton-Hessian, Gaussian", "tab:green"),
-                      "oracle": ("oracle (stratified IS)", "tab:red"), "proxy": ("proxy (stratified IS)", "tab:purple")}.items():
+for k, (lab, col) in {
+    "vanilla_cs": ("vanilla: Newton-Hessian, CountSketch", "tab:orange"),
+    "vanilla_gauss": ("vanilla: Newton-Hessian, Gaussian", "tab:green"),
+    "oracle": ("oracle (stratified IS)", "tab:red"),
+    "proxy": ("proxy (stratified IS)", "tab:purple"),
+}.items():
     LAB[k], COL[k] = lab, col
 S5_METH = ["vanilla_cs", "vanilla_gauss", "oracle", "proxy"]
-DEFAULT_T = 3         
+DEFAULT_T = 3
 
 
 def _cs(B, m, rng):

@@ -1,21 +1,41 @@
-
 import os, urllib.parse, urllib.request
 import numpy as np
 import pandas as pd
 
 BASE = "https://ffiec.cfpb.gov/v2/data-browser-api/view/csv"
-WANT = {"action_taken", "derived_race", "derived_ethnicity", "derived_sex", "loan_amount", "income", "property_value",
-        "combined_loan_to_value_ratio", "loan_to_value_ratio", "debt_to_income_ratio", "loan_type", "occupancy_type", "applicant_age", "ageapplicant",
-        "interest_rate", "total_units", "business_or_commercial_purpose", "open-end_line_of_credit", "loan_purpose", "lien_status"}
+WANT = {
+    "action_taken",
+    "derived_race",
+    "derived_ethnicity",
+    "derived_sex",
+    "loan_amount",
+    "income",
+    "property_value",
+    "combined_loan_to_value_ratio",
+    "loan_to_value_ratio",
+    "debt_to_income_ratio",
+    "loan_type",
+    "occupancy_type",
+    "applicant_age",
+    "ageapplicant",
+    "interest_rate",
+    "total_units",
+    "business_or_commercial_purpose",
+    "open-end_line_of_credit",
+    "loan_purpose",
+    "lien_status",
+}
 DTI = {"<20%": 15, "20%-<30%": 25, "30%-<36%": 33, "50%-60%": 55, ">60%": 65}
 AGE = {"<25": 22, "25-34": 30, "35-44": 40, "45-54": 50, "55-64": 60, "65-74": 70, ">74": 80}
-GROUPS = {"race": ("derived_race", "Black or African American", "White"),
-          "ethnicity": ("derived_ethnicity", "Hispanic or Latino", "Not Hispanic or Latino"),
-          "sex": ("derived_sex", "Female", "Male")}
+GROUPS = {
+    "race": ("derived_race", "Black or African American", "White"),
+    "ethnicity": ("derived_ethnicity", "Hispanic or Latino", "Not Hispanic or Latino"),
+    "sex": ("derived_sex", "Female", "Male"),
+}
 
 
 def url(state="CA", year=2018):
-    q = dict(states=state, years=year, actions_taken="1,3", loan_purposes="1") 
+    q = dict(states=state, years=year, actions_taken="1,3", loan_purposes="1")
     return BASE + "?" + urllib.parse.urlencode(q, safe=",")
 
 
@@ -25,14 +45,18 @@ def _num(s):
 
 def _dti(s):
     out = s.map(DTI)
-    plain = _num(s)                      
+    plain = _num(s)
     return out.fillna(plain.where((plain >= 36) & (plain <= 49)))
 
 
 HEADERS = [
-    {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
-     "Accept": "text/csv,application/csv,*/*;q=0.8", "Accept-Language": "en-US,en;q=0.9",
-     "Referer": "https://ffiec.cfpb.gov/data-browser/", "Origin": "https://ffiec.cfpb.gov"},
+    {
+        "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
+        "Accept": "text/csv,application/csv,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Referer": "https://ffiec.cfpb.gov/data-browser/",
+        "Origin": "https://ffiec.cfpb.gov",
+    },
     {"User-Agent": "curl/8.5.0", "Accept": "*/*"},
     {"User-Agent": "python-requests/2.31.0", "Accept": "*/*"},
 ]
@@ -40,6 +64,7 @@ HEADERS = [
 
 def _fetch(u, dest, headers):
     import shutil
+
     req = urllib.request.Request(u, headers=headers[0])
     with urllib.request.urlopen(req, timeout=1800) as r, open(dest + ".part", "wb") as f:
         shutil.copyfileobj(r, f)
@@ -48,6 +73,7 @@ def _fetch(u, dest, headers):
 
 def download(state, year, dest):
     import shutil
+
     last = None
     for h in HEADERS:
         try:
@@ -56,15 +82,16 @@ def download(state, year, dest):
                 shutil.copyfileobj(r, f)
             os.replace(dest + ".part", dest)
             return dest
-        except Exception as e:                     
+        except Exception as e:
             last = e
     raise RuntimeError(
         f"{last}. The CFPB server refused the request (tried {len(HEADERS)} header sets). Download the file in a browser instead: "
         f"open https://ffiec.cfpb.gov/data-browser/data/{year}?category=states&items={state}&actions_taken=1,3&loan_purposes=1 "
-        f"(or paste this URL into the browser address bar: {url(state, year)}), save the CSV, then rerun with --hmda_path <file.csv>.")
+        f"(or paste this URL into the browser address bar: {url(state, year)}), save the CSV, then rerun with --hmda_path <file.csv>."
+    )
 
 
-HF_URL = "https://huggingface.co/datasets/retrogradespace/hmda_2024/resolve/main/hmda_2024.parquet"   # unmodified CFPB 2024 LAR, 538 MB, CC0
+HF_URL = "https://huggingface.co/datasets/retrogradespace/hmda_2024/resolve/main/hmda_2024.parquet"
 HF_YEARS = {2024}
 
 
@@ -80,7 +107,8 @@ def _as_text(df):
 
 
 def read_parquet(path, state):
-    import pyarrow.parquet as pq                 # only the 2024 parquet needs pyarrow (not in the job environment)
+    import pyarrow.parquet as pq
+
     cols = None
     names = set(pq.ParquetFile(path).schema_arrow.names)
     cols = sorted(WANT & names | ({"state_code"} & names))
@@ -107,9 +135,18 @@ def read_raw(state="CA", year=2018, path=None):
 def clean(raw, group="race", n_max=200000, seed=0):
     df = raw.copy()
     if "combined_loan_to_value_ratio" not in df.columns and "loan_to_value_ratio" in df.columns:
-        df = df.rename(columns={"loan_to_value_ratio": "combined_loan_to_value_ratio"})   
+        df = df.rename(columns={"loan_to_value_ratio": "combined_loan_to_value_ratio"})
     col, g1, g0 = GROUPS[group]
-    need = {"action_taken", col, "loan_amount", "income", "property_value", "combined_loan_to_value_ratio", "debt_to_income_ratio", "loan_type"}
+    need = {
+        "action_taken",
+        col,
+        "loan_amount",
+        "income",
+        "property_value",
+        "combined_loan_to_value_ratio",
+        "debt_to_income_ratio",
+        "loan_type",
+    }
     missing = need - set(df.columns)
     if missing:
         raise ValueError(f"HMDA file is missing columns {sorted(missing)}; columns present: {sorted(df.columns)}")
@@ -126,13 +163,29 @@ def clean(raw, group="race", n_max=200000, seed=0):
         df = df[df["total_units"].isin(["1", "2", "3", "4"])]
     df = df[df[col].isin([g1, g0])]
     df["g"] = (df[col] == g1).astype(int)
-    out = pd.DataFrame({"action": df.action, "g": df.g,
-                        "income": _num(df["income"]), "loan": _num(df["loan_amount"]), "value": _num(df["property_value"]),
-                        "cltv": _num(df["combined_loan_to_value_ratio"]), "dti": _dti(df["debt_to_income_ratio"]),
-                        "age": df[age_col].map(AGE) if age_col in df.columns else np.nan,
-                        "ltype": _num(df["loan_type"]),
-                        "rate": _num(df["interest_rate"]) if "interest_rate" in df.columns else np.nan})
-    out = out[(out.income > 0) & (out.loan > 0) & (out.value > 0) & out.cltv.notna() & out.dti.notna() & out.age.notna() & out.ltype.notna()]
+    out = pd.DataFrame(
+        {
+            "action": df.action,
+            "g": df.g,
+            "income": _num(df["income"]),
+            "loan": _num(df["loan_amount"]),
+            "value": _num(df["property_value"]),
+            "cltv": _num(df["combined_loan_to_value_ratio"]),
+            "dti": _dti(df["debt_to_income_ratio"]),
+            "age": df[age_col].map(AGE) if age_col in df.columns else np.nan,
+            "ltype": _num(df["loan_type"]),
+            "rate": _num(df["interest_rate"]) if "interest_rate" in df.columns else np.nan,
+        }
+    )
+    out = out[
+        (out.income > 0)
+        & (out.loan > 0)
+        & (out.value > 0)
+        & out.cltv.notna()
+        & out.dti.notna()
+        & out.age.notna()
+        & out.ltype.notna()
+    ]
     out["cltv"] = out.cltv.clip(0, 250)
     out = out.reset_index(drop=True)
     if len(out) > n_max:
@@ -141,8 +194,16 @@ def clean(raw, group="race", n_max=200000, seed=0):
 
 
 def features(d):
-    X = pd.DataFrame({"log_income": np.log(d.income), "log_loan": np.log(d.loan), "log_value": np.log(d.value),
-                      "cltv": d.cltv, "dti": d.dti, "age": d.age})
+    X = pd.DataFrame(
+        {
+            "log_income": np.log(d.income),
+            "log_loan": np.log(d.loan),
+            "log_value": np.log(d.value),
+            "cltv": d.cltv,
+            "dti": d.dti,
+            "age": d.age,
+        }
+    )
     lt = pd.get_dummies(d.ltype.astype(int).astype(str), prefix="loan_type", drop_first=True).astype(float)
     X = pd.concat([X, lt], axis=1)
     X = (X - X.mean()) / X.std().replace(0, 1)
@@ -151,7 +212,7 @@ def features(d):
 
 
 def load(state="CA", year=2018, group="race", n_max=200000, seed=0, path=None, task="regression"):
-    d = clean(read_raw(state, year, path), group, n_max if task == "classification" else 10 ** 9, seed)
+    d = clean(read_raw(state, year, path), group, n_max if task == "classification" else 10**9, seed)
     if task == "regression":
         d = d[(d.action == 1) & (d.rate > 0) & (d.rate < 20)].reset_index(drop=True)
         if len(d) > n_max:
@@ -160,5 +221,9 @@ def load(state="CA", year=2018, group="race", n_max=200000, seed=0, path=None, t
     else:
         y = np.where(d.action.values == 1, 1.0, -1.0)
     name = f"hmda-{state}{year}-{group}-" + ("rate" if task == "regression" else "approval")
-    print(f"HMDA {name}: n={len(d)}, minority share={d.g.mean():.3f}, " + (f"mean rate={y.mean():.2f}" if task == "regression" else f"approval rate={(y > 0).mean():.3f}"), flush=True)
+    print(
+        f"HMDA {name}: n={len(d)}, minority share={d.g.mean():.3f}, "
+        + (f"mean rate={y.mean():.2f}" if task == "regression" else f"approval rate={(y > 0).mean():.3f}"),
+        flush=True,
+    )
     return features(d), y, d.g.values.astype(int), name

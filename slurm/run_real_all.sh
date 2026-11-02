@@ -11,24 +11,14 @@
 #SBATCH --mail-user=rm6609@nyu.edu
 #SBATCH --mail-type=BEGIN,END,FAIL
 
-# All real-data experiments (Sections 4 and 5, regression and classification) on all 5 real datasets.
-# One array task per (driver, dataset):  task = 5 * driver + dataset
-#
-#   driver   0 s4_real_regression      bounds table, vary m (size/direction)            -> results/reg_s4_real
-#            1 s5_real_regression      OLS/vanilla/oracle/proxy table, vary m            -> results/reg_s5_real
-#            2 s4_real_classification  approaches 1-3 table, vary m, vary Newton steps   -> results/class_s4_real
-#            3 s5_real_classification  vanilla/oracle/proxy table, vary m, vary steps    -> results/class_s5_real
-#   dataset  0 LSAC   1 ACS CA 2018   2 HMDA CA 2018   3 Diabetes 130-US   4 ENEM 2020
-#
-# The LSAC regression tasks (0 and 5) also run the ablations, which are defined on LSAC only (as before).
-# Subsets:  sbatch --array=0-4 slurm/run_real_all.sh       (all datasets, s4 regression)
-#           sbatch --array=3,8,13,18 slurm/run_real_all.sh (Diabetes, all four drivers)
-# Before the first run:  mkdir -p /scratch/rm6609/fair-sketch-experiments/logs
+# task = 5 * driver + dataset
+# driver: 0 s4 regression, 1 s5 regression, 2 s4 classification, 3 s5 classification
+# dataset: 0 LSAC, 1 ACS, 2 HMDA, 3 Diabetes, 4 ENEM
 
 REPO="/scratch/rm6609/fair-sketch-experiments"
-HMDA_PATH="${REPO}/local_data/hmda_CA_2018.csv"        # CA 2018 CSV from the FFIEC data browser (the API returned 403); "" = use the API
-ENEM_PATH="${REPO}/local_data/DADOS/MICRODADOS_ENEM_2020.csv"    # INEP microdata (unzipped microdados_enem_2020.zip); required for the ENEM tasks
-DIAB_PATH="${REPO}/local_data/diabetes_hospital.csv"  # Fairlearn frame (OpenML 43874, saved via sklearn fetch_openml; fairlearn is not installed); "" = fetch with fairlearn
+HMDA_PATH="${REPO}/local_data/hmda_CA_2018.csv"
+ENEM_PATH="${REPO}/local_data/DADOS/MICRODADOS_ENEM_2020.csv"
+DIAB_PATH="${REPO}/local_data/diabetes_hospital.csv"
 SEED=0
 REG_REPS=200
 CLASS_REPS=60
@@ -44,7 +34,6 @@ DRIVER=${DRIVERS[$DRIVER_IDX]}
 DATASET=${DATASETS[$DATA_IDX]}
 OUT_DIR="${REPO}/results/${OUTS[$DRIVER_IDX]}"
 
-# dataset selection: every driver loads LSAC, ACS and HMDA by default, Diabetes and ENEM only when asked
 case "$DATASET" in
     law)  DATA_ARGS="--no_acs --no_hmda" ;;
     acs)  DATA_ARGS="--no_law --no_hmda" ;;
@@ -62,14 +51,12 @@ if [[ "$DATASET" == "diab" && -n "$DIAB_PATH" && ! -f "$DIAB_PATH" ]]; then
     echo "ERROR: Diabetes file not found: $DIAB_PATH (set DIAB_PATH=\"\" to fetch with fairlearn)" >&2; exit 1
 fi
 
-# which experiments: regression drivers take --exp; ablations only on LSAC (they would overwrite each other otherwise)
 case "$DRIVER" in
     s4_real_regression) EXP_ARGS="--reps $REG_REPS --exp $([[ $DATASET == law ]] && echo all || echo bounds_table,real_m)" ;;
     s5_real_regression) EXP_ARGS="--reps $REG_REPS --exp $([[ $DATASET == law ]] && echo all || echo table,m)" ;;
     *)                  EXP_ARGS="--reps $CLASS_REPS" ;;
 esac
 
-# snapshot the code so edits made while the job is queued or running do not change it
 SNAPSHOT_ROOT="${REPO}/.job_snapshots"
 SNAPSHOT_DIR="${SNAPSHOT_ROOT}/${SLURM_ARRAY_JOB_ID:-$$}_${TASK}_$(date +%s)"
 mkdir -p "$SNAPSHOT_DIR" || { echo "ERROR: failed to create snapshot dir $SNAPSHOT_DIR" >&2; exit 1; }
@@ -94,7 +81,6 @@ singularity exec --fakeroot --overlay "$OVERLAY:ro" \
     source /ext3/miniconda3/bin/activate research
     export HOME=/ext3/conda_home
     export OMP_NUM_THREADS=${SLURM_CPUS_PER_TASK:-8} OPENBLAS_NUM_THREADS=${SLURM_CPUS_PER_TASK:-8} MKL_NUM_THREADS=${SLURM_CPUS_PER_TASK:-8}
-    # the overlay is read-only: send the OpenML (Diabetes) and matplotlib caches somewhere writable, one per task
     export SCIKIT_LEARN_DATA=\${TMPDIR:-/tmp}/sklearn_${SLURM_ARRAY_JOB_ID:-$$}_${TASK}
     export MPLCONFIGDIR=\${TMPDIR:-/tmp}/mpl_${SLURM_ARRAY_JOB_ID:-$$}_${TASK}
     cd $REPO

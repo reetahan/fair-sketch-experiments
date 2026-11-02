@@ -11,23 +11,14 @@
 #SBATCH --mail-user=rm6609@nyu.edu
 #SBATCH --mail-type=BEGIN,END,FAIL
 
-# All synthetic experiments (Sections 4 and 5, regression and classification). One array task per driver, each running
-# its full default set of experiments in one process (so the random stream matches a plain local run of the driver):
-#
-#   task 0 s4_synthetic_regression      synth_m, synth_kappa, synth_gap, synth_lev, synth_spike, bounds_table  -> results/reg_s4_synth
-#        1 s5_synthetic_regression      table, m, kappa, gap, lev, pilot, beta                                 -> results/reg_s5_synth
-#        2 s4_synthetic_classification  table + sweeps m, gap, minority, steps                                 -> results/class_s4_synth
-#        3 s5_synthetic_classification  table + sweeps m, steps, minority, mis                                 -> results/class_s5_synth
-#
-# Subsets:  sbatch --array=0,1 slurm/run_synth_all.sh   (regression only)
-#           EXTRA_ARGS="--quick" sbatch --array=0-3 slurm/run_synth_all.sh   (smoke test: few reps, small n, fewer sweep points)
-# Before the first run:  mkdir -p /scratch/rm6609/fair-sketch-experiments/logs
+# tasks: 0 s4 regression, 1 s5 regression, 2 s4 classification, 3 s5 classification
+# smoke test: EXTRA_ARGS="--quick" sbatch slurm/run_synth_all.sh
 
 REPO="/scratch/rm6609/fair-sketch-experiments"
 SEED=0
 REG_REPS=200
 CLASS_REPS=60
-EXTRA_ARGS="${EXTRA_ARGS:-}"      # passed to every driver, e.g. "--quick" or "--latex"
+EXTRA_ARGS="${EXTRA_ARGS:-}"
 
 DRIVERS=(s4_synthetic_regression s5_synthetic_regression s4_synthetic_classification s5_synthetic_classification)
 OUTS=(reg_s4_synth reg_s5_synth class_s4_synth class_s5_synth)
@@ -39,13 +30,11 @@ fi
 DRIVER=${DRIVERS[$TASK]}
 OUT_DIR="${REPO}/results/${OUTS[$TASK]}"
 
-# regression drivers default to --reps 100 (fs_common); classification to 60 (lib_classification); set both explicitly
 case "$DRIVER" in
     *_regression)     EXP_ARGS="--reps $REG_REPS --exp all" ;;
     *_classification) EXP_ARGS="--reps $CLASS_REPS" ;;
 esac
 
-# snapshot the code so edits made while the job is queued or running do not change it
 SNAPSHOT_ROOT="${REPO}/.job_snapshots"
 SNAPSHOT_DIR="${SNAPSHOT_ROOT}/${SLURM_ARRAY_JOB_ID:-$$}_synth_${TASK}_$(date +%s)"
 mkdir -p "$SNAPSHOT_DIR" || { echo "ERROR: failed to create snapshot dir $SNAPSHOT_DIR" >&2; exit 1; }
@@ -71,7 +60,6 @@ singularity exec --fakeroot --overlay "$OVERLAY:ro" \
     source /ext3/miniconda3/bin/activate research
     export HOME=/ext3/conda_home
     export OMP_NUM_THREADS=${SLURM_CPUS_PER_TASK:-8} OPENBLAS_NUM_THREADS=${SLURM_CPUS_PER_TASK:-8} MKL_NUM_THREADS=${SLURM_CPUS_PER_TASK:-8}
-    # the overlay is read-only: send the matplotlib cache somewhere writable, one per task
     export MPLCONFIGDIR=\${TMPDIR:-/tmp}/mpl_${SLURM_ARRAY_JOB_ID:-$$}_synth_${TASK}
     cd $REPO
     $CMD

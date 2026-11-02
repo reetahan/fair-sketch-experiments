@@ -1,15 +1,14 @@
 #!/usr/bin/env python3
-"""Section 5, classification, synthetic data: one-shot targeted coreset (oracle, proxy, stratified) vs uniform, Section 3
-importance sampling, LogReg-sketch (authors' code) and the Newton sketch (T steps) as a reference; see lib_coreset.py.
-Outputs: s5c_synth_table.{csv,tex}; s5c_synth_{m,minority,mis}.{csv,png}
-Usage: python class_s5_synth.py --out results/class_s5_synth --reps 60 [--quick] [--sweep m,minority,mis] [--replot]"""
+"""Section 5 classification on synthetic data."""
 import argparse, time
 import os, sys
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))   # library modules live at the repo root
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 import lib_classification as cl
 from lib_classification import P, make_data
 from lib_coreset import S5C_METH as S5_METH, run_coreset
-DEFAULT_T = 3       # Newton steps for the Newton-sketch reference line only
+
+DEFAULT_T = 3
 
 SPECS = {
     "s5c_synth_m": dict(x="m", label="sketch size m", logx=True, meths=S5_METH),
@@ -20,7 +19,7 @@ SPECS = {
 
 def main():
     ap = cl.add_args(argparse.ArgumentParser(), "results/class_s5_synth", m=300, T=DEFAULT_T, synth=True)
-    ap.set_defaults(data_seed=3)          # a draw for which all exact-model gaps are clearly nonzero
+    ap.set_defaults(data_seed=3)
     ap.add_argument("--sweep", default="m,minority,mis")
     a = ap.parse_args()
     if a.replot:
@@ -32,17 +31,26 @@ def main():
     base = mk()
     base.T = a.T
     print("exact-model gaps:", {k: round(float(v), 4) for k, v in base.base.items()}, flush=True)
-    cl.table(cl.experiment(base, a.m, a.reps, rng, meths=S5_METH, runner=run_coreset), a.out, "s5c_synth_table", S5_METH,
-             f"Classification, synthetic, m={a.m}: one-shot coresets; Newton sketch reference with {a.T} steps.")
+    cl.table(
+        cl.experiment(base, a.m, a.reps, rng, meths=S5_METH, runner=run_coreset),
+        a.out,
+        "s5c_synth_table",
+        S5_METH,
+        f"Classification, synthetic, m={a.m}: one-shot coresets; Newton sketch reference with {a.T} steps.",
+    )
     sw = set(a.sweep.split(","))
     q = a.quick
-    run = lambda builder, xs, xname, **kw: cl.sweep(builder, xs, xname, a.reps, rng, a.m, S5_METH, runner=run_coreset, **kw)
+    run = lambda builder, xs, xname, **kw: cl.sweep(
+        builder, xs, xname, a.reps, rng, a.m, S5_METH, runner=run_coreset, **kw
+    )
     if "m" in sw:
-        ms = [5 * a.d, 20 * a.d, 80 * a.d] if q else [5 * a.d * 2 ** i for i in range(6)]
+        ms = [5 * a.d, 20 * a.d, 80 * a.d] if q else [5 * a.d * 2**i for i in range(6)]
         cl.emit(a.out, "s5c_synth_m", run(lambda x: base, ms, "m"), SPECS["s5c_synth_m"])
     if "minority" in sw:
         fs = [0.02, 0.1, 0.5] if q else [0.02, 0.05, 0.1, 0.2, 0.35, 0.5]
-        cl.emit(a.out, "s5c_synth_minority", run(lambda x: mk(frac1=x), fs, "frac1", T=a.T), SPECS["s5c_synth_minority"])
+        cl.emit(
+            a.out, "s5c_synth_minority", run(lambda x: mk(frac1=x), fs, "frac1", T=a.T), SPECS["s5c_synth_minority"]
+        )
     if "mis" in sw:
         vs = [0.0, 1.0, 3.0] if q else [0.0, 0.5, 1.0, 2.0, 3.0]
         cl.emit(a.out, "s5c_synth_mis", run(lambda x: mk(mis=x), vs, "mis", T=a.T), SPECS["s5c_synth_mis"])
