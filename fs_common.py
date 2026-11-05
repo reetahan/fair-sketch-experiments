@@ -1,4 +1,4 @@
-import io, os, time, urllib.request, zipfile
+import importlib, io, os, subprocess, sys, time, urllib.request, zipfile
 import numpy as np
 import pandas as pd
 import matplotlib
@@ -7,6 +7,26 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 USETEX = False
+
+DEPS = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".pydeps")
+SCIENCEPLOTS = "SciencePlots==2.1.1"
+
+
+def ensure_scienceplots():
+    """Make SciencePlots importable, installing it into .pydeps/ if needed."""
+    if DEPS not in sys.path:
+        sys.path.insert(0, DEPS)
+    try:
+        import scienceplots
+
+        return
+    except ImportError:
+        pass
+    print(f"installing {SCIENCEPLOTS} into {DEPS} ...", flush=True)
+    r = subprocess.run([sys.executable, "-m", "pip", "install", "--quiet", "--no-deps", "--target", DEPS, SCIENCEPLOTS])
+    importlib.invalidate_caches()
+    if r.returncode != 0:
+        print("WARNING: could not install SciencePlots; using the matplotlib default style", flush=True)
 
 
 def set_style(latex=False, fontsize=16):

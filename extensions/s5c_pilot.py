@@ -10,7 +10,7 @@ from lib_classification import P, make_data, MET
 from lib_coreset import run_coreset
 from lib_data import real_class_problems, add_real_class_args
 from fs_common import style_axes, legend_above, PALETTE
-from replot_all import ensure_scienceplots
+from fs_common import ensure_scienceplots
 
 METH = ["c_unif", "c_tgt_oracle", "c_tgt_proxy", "c_strat_tgt_proxy"]
 FRACS = [0.05, 0.1, 0.25, 0.5, 0.75]

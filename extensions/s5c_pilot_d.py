@@ -12,7 +12,7 @@ from lib_classification import P, make_data
 from lib_coreset import run_coreset
 from lib_data import real_class_problems, add_real_class_args
 from fs_common import PALETTE, legend_above, set_style
-from replot_all import ensure_scienceplots
+from fs_common import ensure_scienceplots
 
 PILOTS = [1, 2.5, 5, 10, 20, 40, 80]
 REFS = ["c_unif", "c_lev"]

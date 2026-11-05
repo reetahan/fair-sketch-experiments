@@ -10,7 +10,7 @@ import lib_coreset as lc
 from lib_classification import P, make_data, MET, fit
 from lib_data import real_class_problems, add_real_class_args
 from fs_common import style_axes, legend_above, PALETTE
-from replot_all import ensure_scienceplots
+from fs_common import ensure_scienceplots
 
 METH = ["unif", "tgt_oracle", "tgt_proxy", "lev"]
 MUS = [0.2, 0.5, 0.8]
