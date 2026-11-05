@@ -235,3 +235,29 @@ data/
 *.tex
 # SciencePlots installed by replot_all.py
 .pydeps/
+
+# Kept locally, not in the repo
+# Plotting scripts
+replot_all.py
+summary_figures.py
+mlp_summary_figures.py
+intro_figure.py
+intro_group_mse.py
+figure_captions.py
+# SLURM scripts and job output
+slurm/
+slurm-*.out
+# Images, archives and generated output folders
+*.pdf
+*.jpg
+*.jpeg
+*.svg
+*.gif
+*.zip
+*.tgz
+*.tar.gz
+figures/
+results/
+# Temporary scripts
+temp.py
+temp_*.py
