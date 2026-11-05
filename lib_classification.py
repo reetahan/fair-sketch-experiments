@@ -1,12 +1,13 @@
 import os
 import numpy as np, pandas as pd
-from fs_common import set_style, plot_sd, sd_layout, save_method_table
+from fs_common import set_style, plot_sd, sd_layout, save_method_table, PALETTE
 from lib_logreg_sketch import fit_logreg_sketch_code
 
 sig = lambda t: 0.5 * (1 + np.tanh(0.5 * t))
-METH = ["samp_unif", "samp_imp", "newton_cs", "newton_gauss", "logreg_sketch", "naive_gauss", "naive_cs"]
+METH = ["samp_unif", "samp_lev", "newton_cs", "newton_gauss", "logreg_sketch", "naive_gauss", "naive_cs"]
 LAB = {
     "samp_unif": "1: sampled, uniform",
+    "samp_lev": "1: sampled, leverage",
     "samp_imp": "1: sampled, importance (oracle)",
     "newton_cs": "2: Newton-Hessian, CountSketch",
     "newton_gauss": "2: Newton-Hessian, Gaussian",
@@ -15,13 +16,14 @@ LAB = {
     "naive_cs": "3: naive CountSketch",
 }
 COL = {
-    "samp_unif": "tab:blue",
-    "samp_imp": "tab:red",
-    "newton_cs": "tab:orange",
-    "newton_gauss": "tab:green",
-    "logreg_sketch": "tab:purple",
+    "samp_unif": PALETTE["unif"],
+    "samp_lev": PALETTE["lev"],
+    "samp_imp": PALETTE["is"],
+    "newton_cs": PALETTE["cs"],
+    "newton_gauss": PALETTE["gauss"],
+    "logreg_sketch": PALETTE["logreg"],
     "naive_gauss": "tab:gray",
-    "naive_cs": "tab:brown",
+    "naive_cs": "0.6",
 }
 MET = ["IF", "DP", "TPR", "FPR"]
 RATE_METRICS = ("DP", "TPR", "FPR")
@@ -71,6 +73,8 @@ class P:
         self.grad_i = self.A * s[:, None]
         self.q_imp = np.linalg.norm(self.grad_i @ L, axis=1)
         self.q_imp = 0.5 * self.q_imp / self.q_imp.sum() + 0.5 / self.n
+        lev = (Z * np.linalg.solve(Z.T @ Z + lam * np.eye(self.d), Z.T).T).sum(1)
+        self.q_lev = lev / lev.sum()
         self.sets = {
             "DP": [g == 0, g == 1],
             "TPR": [(g == 0) & (y > 0), (g == 1) & (y > 0)],
@@ -147,8 +151,8 @@ def damped_step(p, x, step, gr, c=0.1):
 def run(p, meth, m, rng, T=10):
     T = getattr(p, "T", T)
     n, d, lam = p.n, p.d, p.lam
-    if meth in ("samp_unif", "samp_imp"):
-        q = np.full(n, 1 / n) if meth == "samp_unif" else p.q_imp
+    if meth in ("samp_unif", "samp_lev", "samp_imp"):
+        q = {"samp_unif": np.full(n, 1 / n), "samp_lev": p.q_lev, "samp_imp": p.q_imp}[meth]
         idx = rng.choice(n, m, p=q)
         return fit(p.A[idx], 1.0 / (m * q[idx]), lam)
     if meth == "logreg_sketch":

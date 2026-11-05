@@ -2,7 +2,7 @@
 """Extension: fairness distortion of row-sampling sketches when the model is an MLP instead of a linear model.
 
 Question. Sections 4 and 5 analyze least squares and ridge logistic regression. Does compressing the data by row sampling
-distort the fairness of a neural network in the same way, and do the paper's sampling rules (importance, stratified,
+distort the fairness of a neural network in the same way, and do the paper's sampling rules (leverage, stratified,
 targeted), computed from the LINEAR model, still help when the deployed model is an MLP?
 
 Design.
@@ -30,9 +30,9 @@ Metrics (evaluated on all n rows, the population the model serves, as in the pap
   mean_abs_rel, mean_rel, q10_rel, q90_rel and frac_worse, the same columns as the classification CSVs.
 
 Methods (probabilities computed from the full-data LINEAR model, the oracle versions of the paper's rules).
-  regression:      unif; imp (Section 3 importance, p.q_is); strat (uniform within groups, split m_g ~ sqrt(beta_g) for the
+  regression:      unif; lev (leverage, p.q_lev); strat (uniform within groups, split m_g ~ sqrt(beta_g) for the
                    --strat_target, Section 5).
-  classification:  unif; imp (p.q_imp); tgt (targeted, scores for IF, DP, TPR, FPR, mu = 0.2); strat_tgt (stratified targeted).
+  classification:  unif; lev (p.q_lev); tgt (targeted, scores for IF, DP, TPR, FPR, mu = 0.2); strat_tgt (stratified targeted).
 
 Outputs in --out:
   mlp_<task>_<dataset>_draws.csv     every draw: model, method, m, rep, metric, value, reference
@@ -55,11 +55,12 @@ from lib_coreset import scores as tgt_scores, _strat as strat_draw, _mix, _draw
 
 REG_METRICS = ["IF", "IF_p95", "GFE", "MSE"]
 CLS_METRICS = ["IF", "IF_p95", "DP", "TPR", "FPR"]
-REG_METH = ["unif", "imp", "strat"]
-CLS_METH = ["unif", "imp", "tgt", "strat_tgt"]
-LABEL = {"unif": "uniform", "imp": "importance (Sec. 3)", "strat": "stratified uniform (Sec. 5)",
+REG_METH = ["unif", "lev", "strat"]
+CLS_METH = ["unif", "lev", "tgt", "strat_tgt"]
+LABEL = {"unif": "uniform", "lev": "leverage", "strat": "stratified uniform (Sec. 5)",
          "tgt": "targeted (Sec. 5)", "strat_tgt": "stratified targeted (Sec. 5)"}
-COLOR = {"unif": "tab:blue", "imp": "tab:red", "strat": "tab:green", "tgt": "tab:purple", "strat_tgt": "tab:brown"}
+P = fc.PALETTE
+COLOR = {"unif": P["unif"], "lev": P["lev"], "strat": P["strat_unif"], "tgt": P["oracle"], "strat_tgt": P["strat_proxy"]}
 
 
 # ------------------------------------------------------------------------------------------------
@@ -128,9 +129,8 @@ def draw(T, meth, m, rng, a):
     n = T.n
     if meth == "unif":
         return _draw(np.full(n, 1.0 / n), m, rng)
-    if meth == "imp":
-        q = T.p.q_is if T.kind == "reg" else T.p.q_imp
-        return _draw(q / q.sum(), m, rng)
+    if meth == "lev":
+        return _draw(T.p.q_lev, m, rng)
     if meth == "strat":
         m0, m1 = reg_strat_split(T, m, a.strat_target)
         I, W = [], []
@@ -292,11 +292,8 @@ def plot(summary, T, path, min_base):
                 ax.axhspan(0, fl, color="0.85", lw=0, label="MLP seed-to-seed spread (full data)")
             ax.set_xscale("log"); ax.set_yscale("log")
         ax.set_title(met, fontsize=9); ax.set_xlabel("sketch size $m$", fontsize=8); ax.tick_params(labelsize=7)
-    axes[0, 0].set_ylabel("mean |relative change|\n(MLP solid, linear dashed)", fontsize=8)
-    h, l = axes[0, 0].get_legend_handles_labels()
-    fig.legend(h, l, loc="lower center", ncol=min(len(l), 5), fontsize=7, frameon=False, bbox_to_anchor=(0.5, -0.02))
-    fig.suptitle(f"{T.name}: {'regression' if T.kind == 'reg' else 'classification'}, MLP {a_hidden_str}", fontsize=9)
-    fig.tight_layout(rect=(0, 0.08, 1, 1))
+    axes[0, 0].set_ylabel("mean $|$relative change$|$\n(MLP solid, linear dashed)", fontsize=8)
+    fc.legend_above(fig, axes, 0.9, fontsize=7)
     fig.savefig(path, dpi=200)
     plt.close(fig)
 
@@ -358,7 +355,7 @@ def main():
     ap.add_argument("--reps", type=int, default=20)
     ap.add_argument("--full_seeds", type=int, default=5)
     ap.add_argument("--ms", default=None, help="comma-separated sketch sizes (default 4d * 2^i below n/4)")
-    ap.add_argument("--methods", default="unif,imp,strat,tgt,strat_tgt")
+    ap.add_argument("--methods", default="unif,lev,strat,tgt,strat_tgt")
     ap.add_argument("--strat_target", default="GFE", choices=["IF", "GFE", "MSE"])
     ap.add_argument("--mu", type=float, default=0.2, help="uniform mixing weight for targeted sampling")
     ap.add_argument("--hidden", default="64,32", help="hidden widths (misssketch mlp_small = 64,32; mlp_medium = 256,128,64)")

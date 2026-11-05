@@ -4,22 +4,25 @@ import numpy as np
 import lib_classification as cl
 from lib_classification import sig, LAB, COL, fit
 from lib_logreg_sketch import fit_logreg_sketch_code
+from fs_common import PALETTE
 
 GAP_FLOOR = 0.01
 for k, (lab, col) in {
-    "c_unif": ("uniform", "tab:blue"),
-    "c_strat_unif": ("stratified uniform", "tab:cyan"),
-    "c_imp": ("importance, Sec. 3 (oracle)", "tab:gray"),
-    "c_tgt_oracle": ("targeted (oracle)", "tab:red"),
-    "c_tgt_proxy": ("targeted (proxy)", "tab:pink"),
-    "c_strat_tgt_oracle": ("stratified targeted (oracle)", "darkred"),
-    "c_strat_tgt_proxy": ("stratified targeted (proxy)", "tab:purple"),
-    "logreg_code": ("LogReg-sketch (Munteanu et al. 2021)", "tab:olive"),
-    "logreg_code_ky": ("LogReg-sketch, clipped", "tab:brown"),
+    "c_unif": ("uniform", PALETTE["unif"]),
+    "c_strat_unif": ("stratified uniform", PALETTE["strat_unif"]),
+    "c_lev": ("leverage", PALETTE["lev"]),
+    "c_imp": ("importance, Sec. 3 (oracle)", PALETTE["is"]),
+    "c_imp_proxy": ("importance, Sec. 3 (proxy)", "0.6"),
+    "c_tgt_oracle": ("targeted (oracle)", PALETTE["oracle"]),
+    "c_tgt_proxy": ("targeted (proxy)", PALETTE["proxy"]),
+    "c_strat_tgt_oracle": ("stratified targeted (oracle)", "indigo"),
+    "c_strat_tgt_proxy": ("stratified targeted (proxy)", PALETTE["strat_proxy"]),
+    "logreg_code": ("LogReg-sketch (Munteanu et al. 2021)", PALETTE["logreg"]),
+    "logreg_code_ky": ("LogReg-sketch, clipped", "darkolivegreen"),
 }.items():
     LAB[k], COL[k] = lab, col
-S5C_METH = ["c_unif", "c_imp", "c_tgt_oracle", "c_tgt_proxy", "c_strat_tgt_proxy", "logreg_code", "newton_cs"]
-S5C_ALL = S5C_METH + ["c_strat_unif", "c_strat_tgt_oracle", "logreg_code_ky", "newton_gauss"]
+S5C_METH = ["c_unif", "c_lev", "c_tgt_oracle", "c_tgt_proxy", "c_strat_tgt_proxy", "logreg_code", "newton_cs"]
+S5C_ALL = S5C_METH + ["c_imp", "c_imp_proxy", "c_strat_unif", "c_strat_tgt_oracle", "logreg_code_ky", "newton_gauss"]
 
 
 def directions(p, x, target="all"):
@@ -62,6 +65,14 @@ def _pilot(p, m_p, rng):
     return xp, Hh, I, w
 
 
+def imp_probs(p, x, H):
+    """Section 3 importance probabilities at (x, H); p.q_imp is this at the exact solution."""
+    s = sig(-(p.A @ x))
+    L = np.linalg.cholesky(np.linalg.inv(H))
+    a = np.linalg.norm((p.A * s[:, None]) @ L, axis=1)
+    return 0.5 * a / a.sum() + 0.5 / p.n
+
+
 def _strat(p, a, K, m, mu, rng):
     groups = [np.nonzero(p.g == j)[0] for j in (0, 1)]
     qs, beta = [], []
@@ -88,9 +99,11 @@ def run_coreset(p, meth, m, rng, T=None):
         return cl.run(p, meth, m, rng) if T is None else cl.run(p, meth, m, rng, T=T)
     if meth in ("logreg_code", "logreg_code_ky"):
         return fit_logreg_sketch_code(p.A, m, rng, p.lam, clip=0.25 if meth.endswith("ky") else None)
-    target, mu = getattr(p, "target", "all"), getattr(p, "mu", 0.2)
+    target, mu = getattr(p, "target", "all"), getattr(p, "mu", 0.5 if meth.endswith("proxy") else 0.2)
     if meth == "c_unif":
         I, w = _draw(np.full(p.n, 1.0 / p.n), m, rng)
+    elif meth == "c_lev":
+        I, w = _draw(p.q_lev, m, rng)
     elif meth == "c_imp":
         I, w = _draw(p.q_imp, m, rng)
     elif meth == "c_strat_unif":
@@ -100,13 +113,16 @@ def run_coreset(p, meth, m, rng, T=None):
         proxy = meth.endswith("proxy")
         mm = m
         if proxy:
-            m_p = getattr(p, "m_p", None) or m // 4
+            m_p = getattr(p, "m_p", None) or m // 2
             mm = m - m_p
             xp, Hh, Ip, wp = _pilot(p, m_p, rng)
-            a, K = scores(p, xp, Hh, target)
+            if meth != "c_imp_proxy":
+                a, K = scores(p, xp, Hh, target)
         else:
             a, K = scores(p, p.xh, p.H, target)
-        if meth.startswith("c_strat"):
+        if meth == "c_imp_proxy":
+            I, w = _draw(imp_probs(p, xp, Hh), mm, rng)
+        elif meth.startswith("c_strat"):
             I, w = _strat(p, a, K, mm, mu, rng)
         else:
             I, w = _draw(_mix(a, mu), mm, rng)

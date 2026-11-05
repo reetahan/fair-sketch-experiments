@@ -31,12 +31,13 @@ def set_style(latex=False, fontsize=16):
         )
 
 
-def legend_above(fig, axes, top):
+def legend_above(fig, axes, top, **kw):
     entries = {}
     for ax in np.ravel(axes):
         for h, l in zip(*ax.get_legend_handles_labels()):
             entries.setdefault(l, h)
-    fig.legend(entries.values(), entries.keys(), loc="upper center", ncol=len(entries), frameon=False)
+    kw = {"ncol": len(entries), **kw}
+    fig.legend(entries.values(), entries.keys(), loc="upper center", frameon=False, **kw)
     fig.tight_layout(rect=(0, 0, 1, top))
 
 
@@ -85,11 +86,24 @@ def tx(s):
     return s
 
 
-FAMS = ["gauss", "cs", "unif", "is"]
+FAMS = ["gauss", "cs", "unif", "lev"]   # "is" (residual-weighted oracle) is still available
 SFAMS = ["gauss", "cs", "unif"]
 METRICS = ["IF", "GFE", "MSE"]
-FAM_LABEL = {"gauss": "Gaussian", "cs": "CountSketch", "unif": "Uniform", "is": "Importance"}
-COLOR = {"gauss": "tab:blue", "cs": "tab:orange", "unif": "tab:green", "is": "tab:red"}
+FAM_LABEL = {"gauss": "Gaussian", "cs": "CountSketch", "unif": "Uniform", "lev": "Leverage", "is": "Importance (oracle)"}
+PALETTE = {
+    "gauss": "tab:green",
+    "cs": "tab:orange",
+    "unif": "tab:blue",
+    "lev": "tab:red",
+    "is": "tab:gray",
+    "logreg": "tab:olive",
+    "strat_unif": "tab:cyan",
+    "oracle": "tab:brown",
+    "proxy": "tab:pink",
+    "strat_proxy": "tab:purple",
+    "vanilla": "dimgray",
+}
+COLOR = PALETTE
 LAW_URL = "https://raw.githubusercontent.com/damtharvey/law-school-dataset/main/law_dataset.csv"
 
 
@@ -125,6 +139,10 @@ class Problem:
         self.q_is = 0.5 * qopt / qopt.sum() + 0.5 * lev / lev.sum()
         self.cdf_is = np.cumsum(self.q_is)
         self.cdf_is /= self.cdf_is[-1]
+        # leverage-score sampling: q_i = l_i / d, l_i the leverage of row i of A (needs only A, not the solution)
+        self.q_lev = lev / lev.sum()
+        self.cdf_lev = np.cumsum(self.q_lev)
+        self.cdf_lev /= self.cdf_lev[-1]
 
     def mse_g(self, x, g):
         return (self.btb[g] - 2 * x @ self.Atb[g] + x @ self.gram[g] @ x) / self.ng[g]
@@ -184,7 +202,7 @@ def sketch_Q(Q, fam, m, rng, cdf=None, q=None):
     if fam == "unif":
         idx = rng.integers(0, n, size=m)
         return Q[idx] * np.sqrt(n / m)
-    if fam == "is":
+    if fam in ("is", "lev"):
         idx = np.searchsorted(cdf, rng.random(m))
         idx = np.minimum(idx, n - 1)
         return Q[idx] / np.sqrt(m * q[idx])[:, None]
@@ -192,6 +210,8 @@ def sketch_Q(Q, fam, m, rng, cdf=None, q=None):
 
 
 def vanilla_SQ(prob, fam, m, rng):
+    if fam == "lev":
+        return sketch_Q(prob.Q, fam, m, rng, cdf=prob.cdf_lev, q=prob.q_lev)
     return sketch_Q(prob.Q, fam, m, rng, cdf=prob.cdf_is, q=prob.q_is)
 
 
@@ -220,6 +240,8 @@ def sigma_theory(prob, fam, m):
         return prob.n / m * (P * (r**2)[:, None]).T @ P
     if fam == "is":
         return (P * (r**2 / prob.q_is)[:, None]).T @ P / m
+    if fam == "lev":
+        return (P * (r**2 / prob.q_lev)[:, None]).T @ P / m
     raise ValueError(fam)
 
 
@@ -354,6 +376,8 @@ def vanilla_value(prob, C, fam):
         return prob.n * s
     if fam == "is":
         return ((C**2).sum(1) * prob.r**2 / prob.q_is).sum()
+    if fam == "lev":
+        return ((C**2).sum(1) * prob.r**2 / prob.q_lev).sum()
     raise ValueError(fam)
 
 
@@ -385,8 +409,8 @@ def strat_experiment(prob, m, m_pilot, reps, rng, fams=SFAMS, pilot_fam="gauss",
         mi = METRICS.index(metric)
         C = prob.C[metric]
         sbase = {"IF": 1.0, "GFE": prob.ols_values()["GFE"], "MSE": prob.ols_values()["MSE"]}[metric]
-        for fam in fams + ["is"]:
-            vanilla_only = fam == "is"
+        for fam in fams + ["lev"]:
+            vanilla_only = fam == "lev"
             Jvan = vanilla_value(prob, C, fam) / m
             acc = {}
             fails = {}
@@ -682,7 +706,7 @@ def save_vanilla_table(df, out, tag):
 def save_strat_table(df, out, tag):
     df = df.copy()
     df["metric"] = pd.Categorical(df["metric"], METRICS, ordered=True)
-    df["family"] = pd.Categorical(df["family"], SFAMS + ["is"], ordered=True)
+    df["family"] = pd.Categorical(df["family"], SFAMS + ["lev"], ordered=True)
     df["method"] = pd.Categorical(df["method"], ["vanilla", "oracle", "proxy"], ordered=True)
     df = df.sort_values(["metric", "family", "method"])
     df["frac_worse"] = (100 * df["frac_worse"]).round(1)
@@ -741,9 +765,9 @@ def plot_vanilla_sweep(df, xcol, xlabel, path, logx=True):
 def plot_strat_sweep(df, xcol, xlabel, path, logx=True, title="", ycol="J_over_vanilla"):
     absolute = ycol != "J_over_vanilla"
     fig, axes = plt.subplots(len(SFAMS), 3, figsize=(14, 9), sharex=True)
-    sty = {"oracle": ("tab:green", "o-"), "proxy": ("tab:purple", "s-")}
+    sty = {"oracle": (PALETTE["oracle"], "o-"), "proxy": (PALETTE["proxy"], "s-")}
     if absolute:
-        sty = {"vanilla": ("k", "x-"), **sty}
+        sty = {"vanilla": (PALETTE["vanilla"], "x-"), **sty}
     for i, fam in enumerate(SFAMS):
         for j, met in enumerate(METRICS):
             ax = axes[i, j]
@@ -753,8 +777,8 @@ def plot_strat_sweep(df, xcol, xlabel, path, logx=True, title="", ycol="J_over_v
                 d = df[(df.metric == met) & (df.family == fam) & (df.method == method)].sort_values(xcol)
                 ax.plot(d[xcol], d[ycol], st, color=c, label=method)
             if absolute:
-                d = df[(df.metric == met) & (df.family == "is") & (df.method == "vanilla")].sort_values(xcol)
-                ax.plot(d[xcol], d[ycol], ":", color="tab:red", label="importance (vanilla)")
+                d = df[(df.metric == met) & (df.family == "lev") & (df.method == "vanilla")].sort_values(xcol)
+                ax.plot(d[xcol], d[ycol], ":", color="tab:red", label="leverage (vanilla)")
                 ax.set_yscale("log")
             ax.set_xscale("log" if logx else "linear")
             if i == 0:
@@ -763,10 +787,8 @@ def plot_strat_sweep(df, xcol, xlabel, path, logx=True, title="", ycol="J_over_v
                 ax.set_ylabel(tx(f"{FAM_LABEL[fam]}\n{ycol}"))
             if i == len(SFAMS) - 1:
                 ax.set_xlabel(tx(xlabel))
-    axes[0, 0].legend(fontsize=8)
-    fig.suptitle(tx(title + ("   (OLS = 0 by definition)" if absolute else "")))
     style_axes(axes, _xt(df, xcol))
-    fig.tight_layout()
+    legend_above(fig, axes, 0.95, fontsize=8)
     fig.savefig(path, dpi=140)
     plt.close(fig)
 
@@ -1059,7 +1081,6 @@ def plot_harm_sweep(df, xcol, xlabel, path, logx=True, title=""):
         ax.set_xlabel(tx(xlabel))
         ax.set_title(met + (" (change in norm, relative)" if met == "IF" else " (relative to OLS value)"))
     axes[0].set_ylabel("signed change (positive = less fair)")
-    axes[0].legend(fontsize=8)
     ax = axes[3]
     for fam in FAMS:
         d = df[(df.metric == "IF") & (df.family == fam)].sort_values(xcol)
@@ -1069,9 +1090,8 @@ def plot_harm_sweep(df, xcol, xlabel, path, logx=True, title=""):
     ax.set_ylim(-0.03, 1.03)
     ax.set_xlabel(tx(xlabel))
     ax.set_title("fraction of failed sketches")
-    fig.suptitle(tx(title + "   (line: mean over successful runs, band: 10th to 90th percentile)"))
     style_axes(axes, _xt(df, xcol))
-    fig.tight_layout()
+    legend_above(fig, axes, 0.9, fontsize=8)
     fig.savefig(path, dpi=140)
     plt.close(fig)
 
@@ -1262,9 +1282,9 @@ def run_sweep_sd(name, xs, builder, m, reps, rng, out, xlabel, logx=True, extra_
 
 def plot_methods_sd(df, xcol, xlabel, path, fam, logx=True):
     series = [
-        dict(key="vanilla", color="k", style="x-", label="sketched (vanilla)"),
-        dict(key="oracle", color="tab:green", style="o-", label="oracle"),
-        dict(key="proxy", color="tab:purple", style="s-", label="proxy"),
+        dict(key="vanilla", color=PALETTE["vanilla"], style="x-", label="sketched (vanilla)"),
+        dict(key="oracle", color=PALETTE["oracle"], style="o-", label="oracle"),
+        dict(key="proxy", color=PALETTE["proxy"], style="s-", label="proxy"),
     ]
     if df[df.family == fam][xcol].nunique() < 2:
         if os.path.exists(path):
@@ -1281,7 +1301,7 @@ def plot_methods_sd(df, xcol, xlabel, path, fam, logx=True):
         logx=logx,
         band=True,
         zero_label="unsketched (OLS)",
-        zero_color="tab:red",
+        zero_color="k",
     )
 
 
@@ -1385,9 +1405,7 @@ def harm_scatter(prob, m, reps, rng, path, fams=FAMS):
         ax.set_xlabel("relative excess loss")
         ax.set_title(met)
     axes[0].set_ylabel("signed relative change (positive = less fair)")
-    axes[0].legend(fontsize=8)
-    fig.suptitle(tx(f"{prob.name}, m={m}: accuracy cost vs fairness change, one point per sketch draw"))
     style_axes(axes)
-    fig.tight_layout()
+    legend_above(fig, axes, 0.9, fontsize=8)
     fig.savefig(path, dpi=140)
     plt.close(fig)

@@ -1,11 +1,12 @@
 import numpy as np
 from lib_classification import sig, LAB, COL, damped_step
+from fs_common import PALETTE
 
 for k, (lab, col) in {
-    "vanilla_cs": ("vanilla: Newton-Hessian, CountSketch", "tab:orange"),
-    "vanilla_gauss": ("vanilla: Newton-Hessian, Gaussian", "tab:green"),
-    "oracle": ("oracle (stratified IS)", "tab:red"),
-    "proxy": ("proxy (stratified IS)", "tab:purple"),
+    "vanilla_cs": ("vanilla: Newton-Hessian, CountSketch", PALETTE["cs"]),
+    "vanilla_gauss": ("vanilla: Newton-Hessian, Gaussian", PALETTE["gauss"]),
+    "oracle": ("oracle (stratified IS)", PALETTE["oracle"]),
+    "proxy": ("proxy (stratified IS)", PALETTE["proxy"]),
 }.items():
     LAB[k], COL[k] = lab, col
 S5_METH = ["vanilla_cs", "vanilla_gauss", "oracle", "proxy"]
