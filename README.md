@@ -30,8 +30,7 @@ python extensions/s5c_pilot.py --sweep d             # pilot size; --sweep frac 
 
 ## Data
 
-Synthetic runs (`--synthetic`) need no data. Real-data runs download LSAC, ACS and HMDA by default, so they need internet access. Only ENEM needs a file you download yourself: get the 2020 microdata [from here]
-(https://www.gov.br/inep/pt-br/acesso-a-informacao/dados-abertos/microdados/enem) and pass the CSV with `--enem_path`. Without that flag ENEM is skipped, so the ENEM results in the paper need the file. If the CFPB API refuses the HMDA request, the error message gives a browser link; save the CSV and pass it with `--hmda_path`.
+Synthetic runs (`--synthetic`) need no data. Real-data runs download LSAC, ACS and HMDA by default, so they need internet access. Only ENEM needs a file you download yourself: get the 2020 microdata [from here](https://www.gov.br/inep/pt-br/acesso-a-informacao/dados-abertos/microdados/enem) and pass the CSV with `--enem_path`. Without that flag ENEM is skipped, so the ENEM results in the paper need the file. If the CFPB API refuses the HMDA request, the error message gives a browser link; save the CSV and pass it with `--hmda_path`.
 
 | Data set | Source | Flag |
 |---|---|---|
