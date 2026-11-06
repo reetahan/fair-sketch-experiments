@@ -1,4 +1,4 @@
-import importlib, io, os, subprocess, sys, time, urllib.request, zipfile
+import importlib, os, subprocess, sys
 import numpy as np
 import pandas as pd
 import matplotlib
@@ -107,7 +107,6 @@ PALETTE = {"gauss": "tab:green", "cs": "tab:orange", "unif": "tab:blue", "lev": 
            "logreg": "tab:olive", "strat_unif": "tab:cyan", "oracle": "tab:brown", "proxy": "tab:pink",
            "strat_proxy": "tab:purple", "vanilla": "dimgray"}
 COLOR = PALETTE
-LAW_URL = "https://raw.githubusercontent.com/damtharvey/law-school-dataset/main/law_dataset.csv"
 
 
 class Problem:
@@ -498,57 +497,6 @@ def cs_gauss_trace_ratio(prob):
     return float(1.0 - 2.0 * np.sum(r2 * (prob.P**2).sum(1)) / tg), float(((prob.A * prob.P).sum(1)).max())
 
 
-def _standardise(df_num):
-    out = df_num.copy()
-    for c in out.columns:
-        s = out[c].std()
-        if s > 0:
-            out[c] = (out[c] - out[c].mean()) / s
-    return out
-
-
-def load_law(group="race", include_sensitive=False, tier_onehot=True, path=None):
-    df = pd.read_csv(path or LAW_URL).dropna()
-    if group == "race":
-        g = (df["racetxt"] == 1).astype(int).values
-    else:
-        g = (df["male"] == 1).astype(int).values
-    num = df[["lsat", "ugpa", "fam_inc", "fulltime"]].astype(float)
-    if include_sensitive:
-        num["male"] = df["male"].astype(float)
-        num["racetxt"] = df["racetxt"].astype(float)
-    if tier_onehot:
-        T = pd.get_dummies(df["tier"].astype(int), prefix="tier", drop_first=True).astype(float)
-        num = pd.concat([num, T], axis=1)
-    else:
-        num["tier"] = df["tier"].astype(float)
-    X = _standardise(num)
-    X.insert(0, "intercept", 1.0)
-    return Problem(X.values, df["zfygpa"].values.astype(float), g, f"law-{group}")
-
-
-def load_acs(state="CA", year=2018, n_max=200000, group="sex", seed=0):
-    url = f"https://www2.census.gov/programs-surveys/acs/data/pums/{year}/1-Year/csv_p{state.lower()}.zip"
-    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-    raw = urllib.request.urlopen(req, timeout=300).read()
-    z = zipfile.ZipFile(io.BytesIO(raw))
-    name = [n for n in z.namelist() if n.lower().endswith(".csv")][0]
-    cols = ["AGEP", "COW", "SCHL", "MAR", "RELP", "WKHP", "SEX", "RAC1P", "PINCP", "PWGTP"]
-    df = pd.read_csv(z.open(name), usecols=cols)
-    df = df[(df.AGEP > 16) & (df.PINCP > 100) & (df.WKHP > 0) & (df.PWGTP >= 1)].dropna()
-    if len(df) > n_max:
-        df = df.sample(n_max, random_state=seed)
-    g = (df["SEX"] == 2).astype(int).values if group == "sex" else (df["RAC1P"] != 1).astype(int).values
-    num = pd.DataFrame(
-        {"AGEP": df.AGEP.astype(float), "AGEP2": df.AGEP.astype(float) ** 2, "SCHL": df.SCHL.astype(float),
-         "WKHP": df.WKHP.astype(float)}
-    )
-    cat = pd.get_dummies(df[["COW", "MAR", "RELP"]].astype(int).astype(str), drop_first=True).astype(float)
-    X = _standardise(pd.concat([num.reset_index(drop=True), cat.reset_index(drop=True)], axis=1))
-    X.insert(0, "intercept", 1.0)
-    return Problem(X.values, np.log(df["PINCP"].values.astype(float)), g, f"acs-{state}{year}-{group}")
-
-
 def alter(prob, kind, val, seed=0):
     rng = np.random.default_rng(seed)
     A, b, g = prob.A.copy(), prob.b.copy(), prob.g.copy()
@@ -660,69 +608,6 @@ def plot_vanilla_sweep(df, xcol, xlabel, path, logx=True):
     plt.close(fig)
 
 
-def plot_strat_sweep(df, xcol, xlabel, path, logx=True, title="", ycol="J_over_vanilla"):
-    absolute = ycol != "J_over_vanilla"
-    fig, axes = plt.subplots(len(SFAMS), 3, figsize=(14, 9), sharex=True)
-    sty = {"oracle": (PALETTE["oracle"], "o-"), "proxy": (PALETTE["proxy"], "s-")}
-    if absolute:
-        sty = {"vanilla": (PALETTE["vanilla"], "x-"), **sty}
-    for i, fam in enumerate(SFAMS):
-        for j, met in enumerate(METRICS):
-            ax = axes[i, j]
-            if not absolute:
-                ax.axhline(1.0, color="k", lw=0.8)
-            for method, (c, st) in sty.items():
-                d = df[(df.metric == met) & (df.family == fam) & (df.method == method)].sort_values(xcol)
-                ax.plot(d[xcol], d[ycol], st, color=c, label=method)
-            if absolute:
-                d = df[(df.metric == met) & (df.family == "lev") & (df.method == "vanilla")].sort_values(xcol)
-                ax.plot(d[xcol], d[ycol], ":", color="tab:red", label="leverage (vanilla)")
-                ax.set_yscale("log")
-            ax.set_xscale("log" if logx else "linear")
-            if i == 0:
-                ax.set_title(met)
-            if j == 0:
-                ax.set_ylabel(tx(f"{FAM_LABEL[fam]}\n{ycol}"))
-            if i == len(SFAMS) - 1:
-                ax.set_xlabel(tx(xlabel))
-    style_axes(axes, _xt(df, xcol))
-    legend_above(fig, axes, 0.95, fontsize=8)
-    fig.savefig(path, dpi=140)
-    plt.close(fig)
-
-
-def run_sweep_vanilla(name, xs, builder, m, reps, rng, out, xlabel, logx=True, extra_m=None):
-    frames = []
-    for x in xs:
-        prob = builder(x)
-        mm = extra_m(x) if extra_m else m
-        d = vanilla_table(prob, mm, reps, rng)
-        d["x"] = x
-        frames.append(d)
-        print(f"  {name} x={x}: done", flush=True)
-    df = pd.concat(frames)
-    df.to_csv(f"{out}/sweep_{name}.csv", index=False)
-    plot_vanilla_sweep(df, "x", xlabel, f"{out}/sweep_{name}.png", logx=logx, title=name)
-    return df
-
-
-def run_sweep_strat(name, xs, builder, mfun, mpfun, reps, rng, out, xlabel, logx=True, pilot_fam="gauss"):
-    frames = []
-    for x in xs:
-        prob = builder(x)
-        d = strat_experiment(prob, mfun(x), mpfun(x), reps, rng, pilot_fam=pilot_fam)
-        d["x"] = x
-        frames.append(d)
-        print(f"  {name} x={x}: done", flush=True)
-    df = pd.concat(frames)
-    df.to_csv(f"{out}/strat_sweep_{name}.csv", index=False)
-    plot_strat_sweep(df, "x", xlabel, f"{out}/strat_sweep_{name}.png", logx=logx, title=name)
-    plot_strat_sweep(
-        df, "x", xlabel, f"{out}/strat_sweep_{name}_distortion.png", logx=logx, title=name, ycol="emp_mean"
-    )
-    return df
-
-
 def add_common_args(ap):
     ap.add_argument("--out", default="results")
     ap.add_argument("--reps", type=int, default=100)
@@ -732,67 +617,11 @@ def add_common_args(ap):
     ap.add_argument("--m_pilot", type=int, default=100)
     ap.add_argument("--pilot_fam", default="gauss", choices=FAMS)
     ap.add_argument("--latex", action="store_true", help="render plot text with LaTeX (needs LaTeX installed)")
+    ap.add_argument("--synthetic", action="store_true")
+    ap.add_argument("--exp", default="all")
+    ap.add_argument("--n", type=int, default=20000, help="synthetic rows")
+    ap.add_argument("--d", type=int, default=10, help="synthetic columns")
     return ap
-
-
-def add_synth_args(ap):
-    ap.add_argument("--n", type=int, default=20000)
-    ap.add_argument("--d", type=int, default=10)
-    return ap
-
-
-def add_real_args(ap, acs_n=200000, hmda_n=200000):
-    ap.add_argument("--law_path", default=None, help="local csv instead of the GitHub url")
-    ap.add_argument("--no_law", action="store_true", help="skip LSAC")
-    ap.add_argument("--no_acs", action="store_true", help="skip ACS")
-    ap.add_argument("--acs_state", default="CA", help="ACS state (downloaded into memory)")
-    ap.add_argument("--acs_year", type=int, default=2018)
-    ap.add_argument("--acs_n", type=int, default=acs_n, help="max ACS rows (random subsample)")
-    ap.add_argument("--acs_group", default="sex", choices=["sex", "race"])
-    ap.add_argument("--no_hmda", action="store_true", help="skip HMDA")
-    ap.add_argument("--hmda_state", default="CA")
-    ap.add_argument("--hmda_year", type=int, default=2018)
-    ap.add_argument("--hmda_n", type=int, default=hmda_n, help="max HMDA rows (random subsample)")
-    ap.add_argument(
-        "--hmda_group", default="race", choices=["race", "ethnicity", "sex"], help="race: Black vs White applicants"
-    )
-    ap.add_argument(
-        "--hmda_path", default=None, help="local CSV from https://ffiec.cfpb.gov/data-browser/ instead of the API"
-    )
-    ap.add_argument("--diab", action="store_true", help="add Diabetes 130-US Hospitals")
-    ap.add_argument("--diab_path", default=None, help="local CSV of the Fairlearn frame; default fetches from OpenML")
-    ap.add_argument("--diab_n", type=int, default=50000)
-    ap.add_argument("--enem_path", default=None, help="MICRODADOS_ENEM_2020.csv from INEP; ENEM is skipped if unset")
-    ap.add_argument("--enem_group", default="race", choices=["race", "sex"])
-    ap.add_argument(
-        "--enem_score", default="NU_NOTA_CH", choices=["NU_NOTA_CH", "NU_NOTA_LC", "NU_NOTA_MT", "NU_NOTA_CN"]
-    )
-    ap.add_argument("--enem_n", type=int, default=50000)
-    ap.add_argument(
-        "--allow_missing", action="store_true", help="warn and continue if a dataset cannot be loaded (default: stop)"
-    )
-    return ap
-
-
-def load_real(args, law_fn, acs_fn, hmda_fn, extra=()):
-    out = []
-    for name, skip, fn, how in (("LSAC (law school)", args.no_law, law_fn, "pass --no_law"),
-                                (f"ACS {args.acs_state} {args.acs_year}", args.no_acs, acs_fn, "pass --no_acs"),
-                                (f"HMDA {args.hmda_state} {args.hmda_year}", args.no_hmda, hmda_fn, "pass --no_hmda"),
-                                *extra):
-        if skip:
-            continue
-        print(f"loading {name} ...", flush=True)
-        try:
-            out.append(fn(args))
-        except Exception as e:
-            msg = f"could not load {name} ({type(e).__name__}: {e})"
-            if not args.allow_missing:
-                raise SystemExit(
-                    f"ERROR: {msg}. Fix the connection or path, or {how} to skip it, or --allow_missing to continue without it."
-                )
-            print(f"WARNING: {msg}; continuing without it.", flush=True)
-    return out
 
 
 def finish_args(args):
@@ -803,36 +632,6 @@ def finish_args(args):
     os.makedirs(args.out, exist_ok=True)
     set_style(args.latex)
     return args
-
-
-def load_hmda_reg(args):
-    import lib_hmda_data
-
-    A, y, g, name = lib_hmda_data.load(
-        args.hmda_state, args.hmda_year, args.hmda_group, args.hmda_n, args.seed, args.hmda_path, "regression"
-    )
-    return Problem(A, y, g, name)
-
-
-def load_diab_reg(args):
-    import lib_extra_data
-
-    return Problem(*lib_extra_data.load_diabetes(args.diab_n, args.seed, args.diab_path, "regression"))
-
-
-def load_enem_reg(args):
-    import lib_extra_data
-
-    return Problem(*lib_extra_data.load_enem(
-                       args.enem_path, args.enem_group, args.enem_score, args.enem_n, args.seed, "regression"
-                   ))
-
-
-def real_problems(args):
-    extra = [("Diabetes 130-US Hospitals", not args.diab, load_diab_reg, "drop --diab"),
-             (f"ENEM 2020 ({args.enem_path})", not args.enem_path, load_enem_reg, "drop --enem_path")]
-    return load_real(args, lambda a: load_law("race", path=a.law_path),
-                     lambda a: load_acs(a.acs_state, a.acs_year, a.acs_n, a.acs_group, a.seed), load_hmda_reg, extra)
 
 
 def synth_builder(args):
@@ -891,76 +690,6 @@ def harm_table(prob, m, reps, rng, fams=FAMS):
                      excess_loss_rel=X.mean())
             )
     return pd.DataFrame(rows)
-
-
-def save_harm_table(df, out, tag):
-    df = df.copy()
-    df["metric"] = pd.Categorical(df["metric"], METRICS, ordered=True)
-    df["family"] = pd.Categorical(df["family"], FAMS, ordered=True)
-    df = df.sort_values(["metric", "family"])
-    df["frac_worse"] = (100 * df["frac_worse"]).round(1)
-    df.to_csv(f"{out}/harm_{tag}.csv", index=False)
-    write_booktabs(
-        df,
-        ["metric", "family", "ols_value", "mean_signed", "mean_rel", "frac_worse", "q10_rel", "q90_rel",
-         "excess_loss_rel"],
-        ["Metric", "Sketch", "OLS value", "Mean change", "Mean rel.\\ change", "\\% runs worse", "10th pct (rel.)",
-         "90th pct (rel.)", "Excess loss (rel.)"],
-        f"{out}/harm_{tag}.tex",
-        caption=f"Effect of sketching on fairness ({tag}). Positive change = larger disparity than OLS.",
-        label=f"tab:harm_{tag}",
-    )
-
-
-def plot_harm_sweep(df, xcol, xlabel, path, logx=True, title=""):
-    from matplotlib.ticker import NullFormatter
-
-    fig, axes = plt.subplots(1, 4, figsize=(17, 3.8))
-    for ax, met in zip(axes[:3], METRICS):
-        ax.axhline(0.0, color="k", lw=0.8)
-        for fam in FAMS:
-            d = df[(df.metric == met) & (df.family == fam)].sort_values(xcol)
-            if d.empty:
-                continue
-            ax.plot(d[xcol], d["mean_rel"], "o-", color=COLOR[fam], label=FAM_LABEL[fam])
-            ax.fill_between(d[xcol], d["q10_rel"], d["q90_rel"], color=COLOR[fam], alpha=0.12)
-        ax.set_xscale("log" if logx else "linear")
-        dm = df[df.metric == met]
-        yl = robust_lim(
-            np.concatenate([dm["q10_rel"].values, dm["q90_rel"].values, dm["mean_rel"].values]), q=(0, 100), include=0.0
-        )
-        if yl:
-            ax.set_ylim(*yl)
-        ax.set_xlabel(tx(xlabel))
-        ax.set_title(met + (" (change in norm, relative)" if met == "IF" else " (relative to OLS value)"))
-    axes[0].set_ylabel("signed change (positive = less fair)")
-    ax = axes[3]
-    for fam in FAMS:
-        d = df[(df.metric == "IF") & (df.family == fam)].sort_values(xcol)
-        if not d.empty:
-            ax.plot(d[xcol], d["frac_failed"], "o-", color=COLOR[fam], label=FAM_LABEL[fam])
-    ax.set_xscale("log" if logx else "linear")
-    ax.set_ylim(-0.03, 1.03)
-    ax.set_xlabel(tx(xlabel))
-    ax.set_title("fraction of failed sketches")
-    style_axes(axes, _xt(df, xcol))
-    legend_above(fig, axes, 0.9, fontsize=8)
-    fig.savefig(path, dpi=140)
-    plt.close(fig)
-
-
-def run_sweep_harm(name, xs, builder, m, reps, rng, out, xlabel, logx=True, extra_m=None):
-    frames = []
-    for x in xs:
-        prob = builder(x)
-        d = harm_table(prob, extra_m(x) if extra_m else m, reps, rng)
-        d["x"] = x
-        frames.append(d)
-        print(f"  harm {name} x={x}: done", flush=True)
-    df = pd.concat(frames)
-    df.to_csv(f"{out}/harm_sweep_{name}.csv", index=False)
-    plot_harm_sweep(df, "x", xlabel, f"{out}/harm_sweep_{name}.png", logx=logx, title=name)
-    return df
 
 
 def save_method_table(df, path_stem, metric_order, method_order, method_label, caption, label, echo=True):
@@ -1168,35 +897,3 @@ def robust_lim(vals, q=(1, 99), pad=0.08, include=None):
     span = (hi - lo) or abs(hi) or 1.0
     return lo - pad * span, hi + pad * span
 
-
-def harm_scatter(prob, m, reps, rng, path, fams=FAMS):
-    base = harm_base(prob)
-    fig, axes = plt.subplots(1, 3, figsize=(14, 3.8))
-    allx = {j: [] for j in range(3)}
-    ally = {j: [] for j in range(3)}
-    for fam in fams:
-        S, X, OK = harm_runs(prob, fam, m, reps, rng)
-        lab = FAM_LABEL[fam] + (f" ({int((~OK).sum())} failed)" if (~OK).any() else "")
-        for j, (ax, met) in enumerate(zip(axes, METRICS)):
-            ax.scatter(X[OK], S[OK, j] / base[met], s=8, alpha=0.5, color=COLOR[fam], label=lab if j == 0 else None)
-            allx[j].append(X[OK])
-            ally[j].append(S[OK, j] / base[met])
-    for j, (ax, met) in enumerate(zip(axes, METRICS)):
-        ax.axhline(0.0, color="k", lw=0.8)
-        xs, ys = np.concatenate(allx[j]), np.concatenate(ally[j])
-        xs = xs[xs > 0]
-        ax.set_xscale("log")
-        if xs.size:
-            lo, hi = np.percentile(np.log10(xs), [1, 99])
-            pad = 0.1 * ((hi - lo) or 1)
-            ax.set_xlim(10 ** (lo - pad), 10 ** (hi + pad))
-        yl = robust_lim(ys, include=0.0)
-        if yl:
-            ax.set_ylim(*yl)
-        ax.set_xlabel("relative excess loss")
-        ax.set_title(met)
-    axes[0].set_ylabel("signed relative change (positive = less fair)")
-    style_axes(axes)
-    legend_above(fig, axes, 0.9, fontsize=8)
-    fig.savefig(path, dpi=140)
-    plt.close(fig)

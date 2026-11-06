@@ -10,8 +10,8 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+import lib_classification as cl
 from lib_classification import P, sig
-import lib_coreset as lc
 from fs_common import PALETTE, legend_above
 
 METHODS = ["c_unif", "c_lev", "c_tgt_oracle", "c_tgt_proxy"]
@@ -35,15 +35,11 @@ def make(tau1, n=20000, d=30, k_noise=26, frac1=0.2, gap=1.0, off=-1.0, mis=0.5,
     return P(Z, y, g, lam=1.0, name=f"tau1={tau1}")
 
 
-def objective(K, q):
-    return float(np.sum(np.sum(K ** 2, 1) / q) - np.sum(np.sum(K, 0) ** 2))
-
-
 def one_tau(tau, ms, reps, target, mu, f, seed):
     p = make(tau, seed=seed)
     p.target, p.mu = target, mu
-    a, K = lc.scores(p, p.xh, p.H, target)
-    pred = objective(K, p.q_lev) / objective(K, lc._mix(a, mu))
+    a, K = cl.scores(p, p.xh, p.H, target)
+    pred = cl.objective(K, p.q_lev) / cl.objective(K, cl._mix(a, mu))
     mets = ["IF", "DP", "TPR", "FPR"] if target == "all" else [target]
     rows = []
     for m in ms:
@@ -52,7 +48,7 @@ def one_tau(tau, ms, reps, target, mu, f, seed):
         err = {me: [] for me in METHODS}
         for _ in range(reps):
             for me in METHODS:
-                s = p.signed(lc.run_coreset(p, me, m, rng))
+                s = p.signed(cl.run_coreset(p, me, m, rng))
                 err[me].append(np.mean([abs(s[k]) for k in mets]))
         base = np.mean(err["c_lev"])
         for me in METHODS:

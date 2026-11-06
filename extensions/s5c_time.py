@@ -4,14 +4,13 @@ import os
 
 for v in ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS"):
     os.environ[v] = "1"
-import argparse, sys, time
+import sys, time
 import numpy as np, pandas as pd
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 import lib_classification as cl
-from lib_classification import P, make_data, fit, sig
-from lib_coreset import run_coreset
-from lib_data import real_class_problems, add_real_class_args
+from lib_classification import fit, sig
+from lib_classification import run_coreset
 
 M_FACTORS = [10, 40, 160]
 METHODS = ["c_unif", "c_lev", "c_tgt_oracle", "c_tgt_proxy", "c_strat_tgt_proxy", "logreg_code", "newton_cs"]
@@ -63,12 +62,10 @@ def bench(p, name, reps, rng, factors):
 
 
 def main():
-    ap = add_real_class_args(cl.add_args(argparse.ArgumentParser(), "results/time_s5c", m=300, T=3, synth=True))
-    ap.add_argument("--synthetic", action="store_true")
-    ap.set_defaults(data_seed=3)
+    ap = cl.ext_args("results/time_s5c")
     a = ap.parse_args()
     rng = cl.start(a)
-    probs = [P(*make_data(a.n, a.d, frac1=0.1, seed=a.data_seed))] if a.synthetic else real_class_problems(a)
+    probs = cl.ext_problems(a)
     for p in probs:
         p.T = a.T
         name = "synth" if a.synthetic else p.name

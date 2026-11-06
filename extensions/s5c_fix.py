@@ -1,15 +1,13 @@
 #!/usr/bin/env python3
 """Section 5 classification: where the targeted proxy loses the oracle's gain, and two attempted fixes."""
-import argparse, os, sys, time
+import os, sys, time
 import numpy as np, pandas as pd
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 import lib_classification as cl
-import lib_coreset as lc
-from lib_classification import P, make_data, sig, fit
-from lib_coreset import _draw, _mix, _pilot, imp_probs, run_coreset, directions
-from lib_logreg_sketch import fit_logreg_sketch_code
-from lib_data import real_class_problems, add_real_class_args
+from lib_classification import sig, fit
+from lib_classification import _draw, _mix, _pilot, imp_probs, run_coreset, directions
+from lib_classification import fit_logreg_sketch_code
 
 M_FACTORS = [10, 40, 160]
 REFS = {"unif": "c_unif", "lev": "c_lev", "imp_base": "c_imp_proxy", "oracle": "c_tgt_oracle", "tgt_base": "c_tgt_proxy"}
@@ -39,10 +37,6 @@ def targeted_probs(p, x_res, H, U):
     return _mix(np.linalg.norm(kappa(p, x_res, H, U), axis=1), p.mu)
 
 
-def objective(K, q):
-    return float(np.sum(np.sum(K**2, 1) / q) - np.sum(np.sum(K, 0) ** 2))
-
-
 def alpha_run(p, meth, m, rng):
     m_p = p.m_p
     xp, Hh, Ip, wp = _pilot(p, m_p, rng)
@@ -55,7 +49,7 @@ def alpha_run(p, meth, m, rng):
         q = _mix(np.linalg.norm(Ke, axis=1), p.mu)
     K = Ke if meth in ("tgt_alpha", "imp_alpha") else p.K_exact
     f = m_p / m
-    vu, vq = objective(K, np.full(len(q), 1.0 / len(q))), max(objective(K, q), 1e-300)
+    vu, vq = cl.objective(K, np.full(len(q), 1.0 / len(q))), max(cl.objective(K, q), 1e-300)
     alpha = (f / vu) / (f / vu + (1 - f) / vq)
     p.alphas.setdefault(meth, []).append(alpha)
     I, w = _draw(q, m - m_p, rng)
@@ -113,7 +107,7 @@ def runner(p, meth, m, rng):
         U = shrunk_directions(p, xp, lambda k, g: np.sqrt(g * g + 1.0 / m_p))
     elif meth == "tgt_exactgap":
         ex = p.exact_gaps
-        U = shrunk_directions(p, xp, lambda k, g: max(ex[k], lc.GAP_FLOOR))
+        U = shrunk_directions(p, xp, lambda k, g: max(ex[k], cl.GAP_FLOOR))
     U = directions(p, xp) if U is None else U
     I, w = _draw(targeted_probs(p, x_res, H, U), m - m_p, rng)
     f = m_p / m
@@ -137,16 +131,14 @@ def sweep(p, reps, rng, fracs, factors, meths):
 
 
 def main():
-    ap = add_real_class_args(cl.add_args(argparse.ArgumentParser(), "results/fix_s5c", m=300, T=3, synth=True))
-    ap.add_argument("--synthetic", action="store_true")
+    ap = cl.ext_args("results/fix_s5c")
     ap.add_argument("--fracs", default="0.25,0.5")
     ap.add_argument("--methods", default=",".join(METHODS))
-    ap.set_defaults(data_seed=3)
     a = ap.parse_args()
     rng = cl.start(a)
     fracs = [float(v) for v in a.fracs.split(",")]
     factors = [10, 40] if a.quick else M_FACTORS
-    probs = [P(*make_data(a.n, a.d, frac1=0.1, seed=a.data_seed))] if a.synthetic else real_class_problems(a)
+    probs = cl.ext_problems(a)
     t0 = time.time()
     for p in probs:
         print(f"[{p.name}] n={p.n} d={p.d}", flush=True)

@@ -1,7 +1,8 @@
-import os
+"""Ridge logistic regression, its sketches (Section 4) and one-shot targeted coresets (Section 5)."""
+import argparse, os
 import numpy as np, pandas as pd
+import scipy.optimize as so
 from fs_common import set_style, plot_sd, sd_layout, save_method_table, PALETTE
-from lib_logreg_sketch import fit_logreg_sketch_code
 
 sig = lambda t: 0.5 * (1 + np.tanh(0.5 * t))
 METH = ["samp_unif", "samp_lev", "newton_cs", "newton_gauss", "logreg_sketch", "naive_gauss", "naive_cs"]
@@ -82,48 +83,6 @@ class P:
         return out
 
 
-def logreg_sketch(A, m, rng, b=3.0, levels=3, frac_unif=1 / 3):
-    """LogReg-sketch as described in the paper (Sec. 3.1 and 5)."""
-    n, d = A.shape
-    mT = max(d + 1, int(round(frac_unif * m)))
-    N = max(1, (m - mT) // levels)
-    pr = b ** (-np.arange(levels, dtype=float))
-    pr /= pr.sum()
-    lev = rng.choice(levels, n, p=pr)
-    bucket = lev * N + rng.integers(0, N, n)
-    SA = np.zeros((levels * N, d))
-    np.add.at(SA, bucket, A)
-    keep = np.bincount(bucket, minlength=levels * N) > 0
-    blev = np.repeat(np.arange(levels), N)
-    SA = SA * (N * levels / pr[blev])[:, None]
-    idx = rng.choice(n, mT)
-    rows = np.vstack([SA[keep], A[idx]])
-    w = np.concatenate([np.full(keep.sum(), 1.0 / (N * levels)), np.full(mT, n / mT)])
-    lv = np.concatenate([blev[keep], np.full(mT, -1)])
-    return rows, w, lv
-
-
-def fit_logreg_sketch(A, m, rng, lam, clip=None, iters=8):
-    B, w, lv = logreg_sketch(A, m, rng)
-    x = fit(B, w, lam)
-    if clip is None:
-        return x
-    for _ in range(iters):
-        mar = B @ x
-        wk = w.copy()
-        for h in range(lv.max() + 1):
-            ix = np.where(lv == h)[0]
-            k = max(1, int(np.ceil(clip * len(ix))))
-            drop = ix[np.argsort(mar[ix])[k:]]
-            wk[drop] = 0.0
-        xn = fit(B, wk, lam)
-        if np.linalg.norm(xn - x) < 1e-8 * (1 + np.linalg.norm(x)):
-            x = xn
-            break
-        x = xn
-    return x
-
-
 def damped_step(p, x, step, gr, c=0.1):
     """Armijo backtracking on the exact objective."""
     t, f0, slope = 1.0, p.f(x), gr @ step
@@ -141,10 +100,6 @@ def run(p, meth, m, rng, T=10):
         return fit(p.A[idx], 1.0 / (m * q[idx]), lam)
     if meth == "logreg_sketch":
         return fit_logreg_sketch_code(p.A, m, rng, lam)
-    if meth == "logreg_sketch_ky":
-        return fit_logreg_sketch_code(p.A, m, rng, lam, clip=0.25)
-    if meth == "logreg_sketch_paper":
-        return fit_logreg_sketch(p.A, m, rng, lam)
     if meth.startswith("naive"):
         if meth == "naive_gauss":
             SA = rng.standard_normal((m, n)) @ p.A / np.sqrt(m)
@@ -266,6 +221,26 @@ def add_args(ap, out, m=500, T=10, reps=60, synth=False):
     return ap
 
 
+def ext_args(out):
+    from lib_data import add_real_args
+
+    ap = add_real_args(add_args(argparse.ArgumentParser(), out, m=300, T=3, synth=True), 50000)
+    ap.add_argument("--synthetic", action="store_true")
+    ap.set_defaults(data_seed=3)
+    return ap
+
+
+def ext_problems(a):
+    from lib_data import real_problems
+
+    return [P(*make_data(a.n, a.d, frac1=0.1, seed=a.data_seed))] if a.synthetic else real_problems(a, "classification")
+
+
+def objective(K, q):
+    """Variance objective V(q) = sum_i ||kappa_i||^2 / q_i - ||sum_i kappa_i||^2 of a sampling rule q."""
+    return float(np.sum(np.sum(K**2, 1) / q) - np.sum(np.sum(K, 0) ** 2))
+
+
 def start(args):
     if args.quick:
         args.reps = min(args.reps, 10)
@@ -280,3 +255,164 @@ def start(args):
 
 def table(df, out, stem, methods, caption):
     save_method_table(df, f"{out}/{stem}", MET, methods, LAB, caption, f"tab:{stem}")
+
+
+def logreg_sketch_code(A, m, rng, h_max=2):
+    n, d = A.shape
+    N = max(int(m / (h_max + 2)), 1)
+    b = (n / N) ** (1.0 / h_max)
+    pl = b ** np.arange(h_max + 1, dtype=float)
+    alpha = pl.sum()
+    pl /= alpha
+    lev = rng.choice(h_max + 1, n, p=pl)
+    SA = np.zeros((N * (h_max + 1), d))
+    np.add.at(SA, lev * N + rng.integers(0, N, n), A)
+    w_sk = np.repeat(1.0 / pl, N)
+    k = max(m - N * (h_max + 1), 1)
+    U = rng.choice(n, k, replace=False)
+    rows = np.vstack([SA, A[U]])
+    w = np.concatenate([w_sk, np.full(k, n / k)])
+    return rows, w * (n / w.sum()), N
+
+
+def _keep(t, N, K, L):
+    blocks = t[:L].reshape(-1, N)
+    top = np.argpartition(blocks, K - 1, axis=1)[:, :K] + (np.arange(blocks.shape[0]) * N)[:, None]
+    return np.concatenate([top.ravel(), np.arange(L, len(t))])
+
+
+def fit_logreg_sketch_code(A, m, rng, lam, clip=None, h_max=2):
+    rows, w, N = logreg_sketch_code(A, m, rng, h_max)
+    L = N * (h_max + 1)
+    K = max(int(N * clip), 1) if clip else None
+
+    def f(x):
+        t = rows @ x
+        I = _keep(t, N, K, L) if (clip and K < N) else slice(None)
+        tI, wI = t[I], w[I]
+        return wI @ np.logaddexp(0, -tI) + 0.5 * lam * x @ x, -(rows[I].T @ (wI * sig(-tI))) + lam * x
+
+    return so.minimize(f, np.zeros(A.shape[1]), jac=True, method="L-BFGS-B").x
+
+
+GAP_FLOOR = 0.01
+for k, (lab, col) in {"c_unif": ("uniform", PALETTE["unif"]),
+                      "c_strat_unif": ("stratified uniform", PALETTE["strat_unif"]),
+                      "c_lev": ("leverage", PALETTE["lev"]), "c_imp": ("importance, Sec. 3 (oracle)", PALETTE["is"]),
+                      "c_imp_proxy": ("importance, Sec. 3 (proxy)", "0.6"),
+                      "c_tgt_oracle": ("targeted (oracle)", PALETTE["oracle"]),
+                      "c_tgt_proxy": ("targeted (proxy)", PALETTE["proxy"]),
+                      "c_strat_tgt_oracle": ("stratified targeted (oracle)", "indigo"),
+                      "c_strat_tgt_proxy": ("stratified targeted (proxy)", PALETTE["strat_proxy"]),
+                      "logreg_code": ("LogReg-sketch (Munteanu et al. 2021)", PALETTE["logreg"]),
+                      "logreg_code_ky": ("LogReg-sketch, clipped", "darkolivegreen")}.items():
+    LAB[k], COL[k] = lab, col
+S5C_METH = ["c_unif", "c_lev", "c_tgt_oracle", "c_tgt_proxy", "c_strat_tgt_proxy", "logreg_code", "newton_cs"]
+S5C_ALL = S5C_METH + ["c_imp", "c_imp_proxy", "c_strat_unif", "c_strat_tgt_oracle", "logreg_code_ky", "newton_gauss"]
+
+
+def directions(p, x, target="all"):
+    pr = sig(p.Z @ x)
+    dd = pr * (1 - pr)
+    cols = []
+    for k in ["IF", "DP", "TPR", "FPR"] if target == "all" else [target]:
+        if k == "IF":
+            cols.append(x / (x @ x))
+            continue
+        r0, r1 = p.sets[k]
+        u = (dd[r0] @ p.Z[r0]) / r0.sum() - (dd[r1] @ p.Z[r1]) / r1.sum()
+        if target == "all":
+            u = u / max(abs(pr[r0].mean() - pr[r1].mean()), GAP_FLOOR)
+        cols.append(u)
+    return np.stack(cols, 1)
+
+
+def scores(p, x, H, target="all"):
+    """kappa_i scores (Section 5)."""
+    K = ((p.y > 0) - sig(p.Z @ x))[:, None] * (p.Z @ np.linalg.solve(H, directions(p, x, target)))
+    return np.linalg.norm(K, axis=1), K
+
+
+def _mix(a, mu):
+    return (1 - mu) * a / a.sum() + mu / len(a)
+
+
+def _draw(q, m, rng):
+    Kc = rng.multinomial(m, q)
+    I = np.nonzero(Kc)[0]
+    return I, Kc[I] / (m * q[I])
+
+
+def _pilot(p, m_p, rng):
+    I, w = _draw(np.full(p.n, 1.0 / p.n), m_p, rng)
+    xp = fit(p.A[I], w, p.lam)
+    s = sig(p.A[I] @ xp)
+    Hh = (p.Z[I] * (w * s * (1 - s))[:, None]).T @ p.Z[I] + p.lam * np.eye(p.d)
+    return xp, Hh, I, w
+
+
+def imp_probs(p, x, H):
+    """Section 3 importance probabilities at (x, H); p.q_imp is this at the exact solution."""
+    s = sig(-(p.A @ x))
+    L = np.linalg.cholesky(np.linalg.inv(H))
+    a = np.linalg.norm((p.A * s[:, None]) @ L, axis=1)
+    return 0.5 * a / a.sum() + 0.5 / p.n
+
+
+def _strat(p, a, K, m, mu, rng):
+    groups = [np.nonzero(p.g == j)[0] for j in (0, 1)]
+    qs, beta = [], []
+    for idx in groups:
+        q = _mix(a[idx] + 1e-300, mu)
+        qs.append(q)
+        beta.append(max(np.sum(np.sum(K[idx] ** 2, 1) / q) - np.sum(np.sum(K[idx], 0) ** 2), 0.0))
+    sb = np.sqrt(beta)
+    if sb.sum() > 0:
+        m0 = round(m * sb[0] / sb.sum())
+    else:
+        m0 = round(m * len(groups[0]) / p.n)
+    m0 = int(np.clip(m0, 2, m - 2))
+    I, W = [], []
+    for idx, q, mg in zip(groups, qs, (m0, m - m0)):
+        Ig, wg = _draw(q, mg, rng)
+        I.append(idx[Ig])
+        W.append(wg)
+    return np.concatenate(I), np.concatenate(W)
+
+
+def run_coreset(p, meth, m, rng, T=None):
+    if meth.startswith("newton"):
+        return run(p, meth, m, rng) if T is None else run(p, meth, m, rng, T=T)
+    if meth in ("logreg_code", "logreg_code_ky"):
+        return fit_logreg_sketch_code(p.A, m, rng, p.lam, clip=0.25 if meth.endswith("ky") else None)
+    target, mu = getattr(p, "target", "all"), getattr(p, "mu", 0.5 if meth.endswith("proxy") else 0.2)
+    if meth == "c_unif":
+        I, w = _draw(np.full(p.n, 1.0 / p.n), m, rng)
+    elif meth == "c_lev":
+        I, w = _draw(p.q_lev, m, rng)
+    elif meth == "c_imp":
+        I, w = _draw(p.q_imp, m, rng)
+    elif meth == "c_strat_unif":
+        a, K = scores(p, p.xh, p.H, target)
+        I, w = _strat(p, np.ones(p.n), K, m, 1.0, rng)
+    else:
+        proxy = meth.endswith("proxy")
+        mm = m
+        if proxy:
+            m_p = getattr(p, "m_p", None) or m // 2
+            mm = m - m_p
+            xp, Hh, Ip, wp = _pilot(p, m_p, rng)
+            if meth != "c_imp_proxy":
+                a, K = scores(p, xp, Hh, target)
+        else:
+            a, K = scores(p, p.xh, p.H, target)
+        if meth == "c_imp_proxy":
+            I, w = _draw(imp_probs(p, xp, Hh), mm, rng)
+        elif meth.startswith("c_strat"):
+            I, w = _strat(p, a, K, mm, mu, rng)
+        else:
+            I, w = _draw(_mix(a, mu), mm, rng)
+        if proxy and getattr(p, "reuse_pilot", True):
+            f = m_p / m
+            I, w = np.concatenate([Ip, I]), np.concatenate([f * wp, (1 - f) * w])
+    return fit(p.A[I], w, p.lam)

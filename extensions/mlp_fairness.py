@@ -14,7 +14,8 @@ import pandas as pd
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 import fs_common as fc
 import lib_classification as cl
-from lib_coreset import scores as tgt_scores, _strat as strat_draw, _mix, _draw
+from lib_data import real_problems, add_real_args
+from lib_classification import scores as tgt_scores, _strat as strat_draw, _mix, _draw
 
 REG_METRICS = ["IF", "IF_p95", "GFE", "MSE"]
 CLS_METRICS = ["IF", "IF_p95", "DP", "TPR", "FPR"]
@@ -54,14 +55,13 @@ def load_tasks(a):
             out.append(Task("reg", fc.make_synth(n=a.n, d=a.d, frac1=0.05, lev1=1.0, noise1=3.0, seed=a.seed,
                                                   name="synth-reg")))
         else:
-            out += [Task("reg", p) for p in fc.real_problems(a)]
+            out += [Task("reg", p) for p in real_problems(a)]
     if a.task in ("cls", "both"):
         if a.synthetic:
             Z, y, g = cl.make_data(n=a.n, d=a.d, seed=a.seed)
             out.append(Task("cls", cl.P(Z, y, g, 1.0, name="synth-cls")))
         else:
-            from lib_data import real_class_problems
-            out += [Task("cls", p) for p in real_class_problems(a)]
+            out += [Task("cls", p) for p in real_problems(a, "classification")]
     return out
 
 
@@ -314,7 +314,7 @@ def main():
     ap.add_argument("--synthetic", action="store_true", help="synthetic data instead of the real data sets")
     ap.add_argument("--n", type=int, default=20000, help="synthetic rows")
     ap.add_argument("--d", type=int, default=10, help="synthetic features")
-    fc.add_real_args(ap)
+    add_real_args(ap)
     a = ap.parse_args()
     import torch
     a.device_ = ("cuda" if torch.cuda.is_available() else "cpu") if a.device == "auto" else a.device
