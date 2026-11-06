@@ -7,19 +7,16 @@ from lib_logreg_sketch import fit_logreg_sketch_code
 from fs_common import PALETTE
 
 GAP_FLOOR = 0.01
-for k, (lab, col) in {
-    "c_unif": ("uniform", PALETTE["unif"]),
-    "c_strat_unif": ("stratified uniform", PALETTE["strat_unif"]),
-    "c_lev": ("leverage", PALETTE["lev"]),
-    "c_imp": ("importance, Sec. 3 (oracle)", PALETTE["is"]),
-    "c_imp_proxy": ("importance, Sec. 3 (proxy)", "0.6"),
-    "c_tgt_oracle": ("targeted (oracle)", PALETTE["oracle"]),
-    "c_tgt_proxy": ("targeted (proxy)", PALETTE["proxy"]),
-    "c_strat_tgt_oracle": ("stratified targeted (oracle)", "indigo"),
-    "c_strat_tgt_proxy": ("stratified targeted (proxy)", PALETTE["strat_proxy"]),
-    "logreg_code": ("LogReg-sketch (Munteanu et al. 2021)", PALETTE["logreg"]),
-    "logreg_code_ky": ("LogReg-sketch, clipped", "darkolivegreen"),
-}.items():
+for k, (lab, col) in {"c_unif": ("uniform", PALETTE["unif"]),
+                      "c_strat_unif": ("stratified uniform", PALETTE["strat_unif"]),
+                      "c_lev": ("leverage", PALETTE["lev"]), "c_imp": ("importance, Sec. 3 (oracle)", PALETTE["is"]),
+                      "c_imp_proxy": ("importance, Sec. 3 (proxy)", "0.6"),
+                      "c_tgt_oracle": ("targeted (oracle)", PALETTE["oracle"]),
+                      "c_tgt_proxy": ("targeted (proxy)", PALETTE["proxy"]),
+                      "c_strat_tgt_oracle": ("stratified targeted (oracle)", "indigo"),
+                      "c_strat_tgt_proxy": ("stratified targeted (proxy)", PALETTE["strat_proxy"]),
+                      "logreg_code": ("LogReg-sketch (Munteanu et al. 2021)", PALETTE["logreg"]),
+                      "logreg_code_ky": ("LogReg-sketch, clipped", "darkolivegreen")}.items():
     LAB[k], COL[k] = lab, col
 S5C_METH = ["c_unif", "c_lev", "c_tgt_oracle", "c_tgt_proxy", "c_strat_tgt_proxy", "logreg_code", "newton_cs"]
 S5C_ALL = S5C_METH + ["c_imp", "c_imp_proxy", "c_strat_unif", "c_strat_tgt_oracle", "logreg_code_ky", "newton_gauss"]

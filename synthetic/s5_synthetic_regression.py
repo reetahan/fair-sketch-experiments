@@ -42,24 +42,10 @@ def main():
     if want("lev"):
         print("[lev]")
         ls = sweep_pts(args, [0.0, 0.5, 1.0, 1.5, 2.0], [0.0, 1.0, 2.0])
-        run(
-            "lev",
-            ls,
-            lambda x: synth(lev=float(x), **kw),
-            lambda x: m,
-            lambda x: mp,
-            r"leverage spread $\sigma$",
-            logx=False,
-        )
-        run(
-            "lev_minority",
-            ls,
-            lambda x: synth(lev1=float(x), noise1=3.0, frac1=0.05),
-            lambda x: m,
-            lambda x: mp,
-            r"minority leverage spread $\sigma$",
-            logx=False,
-        )
+        run("lev", ls, lambda x: synth(lev=float(x), **kw), lambda x: m, lambda x: mp, r"leverage spread $\sigma$",
+            logx=False)
+        run("lev_minority", ls, lambda x: synth(lev1=float(x), noise1=3.0, frac1=0.05), lambda x: m, lambda x: mp,
+            r"minority leverage spread $\sigma$", logx=False)
     if want("pilot"):
         print("[pilot]")
         prob = synth(**kw)
@@ -68,12 +54,10 @@ def main():
         run("pilot", ps, lambda x: prob, lambda x: mbig, lambda x: x, "pilot size")
     if want("beta"):
         print("[beta]")
-        grid = (
-            [("noise1", n1, dict(noise1=float(n1), frac1=0.5)) for n1 in [1, 2, 4, 8]]
-            + [("mis", v, dict(noise1=3.0, frac1=0.5, mis=v)) for v in [0.0, 0.5, 1.0, 2.0]]
-            + [("frac1", f1, dict(noise1=3.0, frac1=f1)) for f1 in [0.05, 0.1, 0.2, 0.35, 0.5]]
-            + [("gap", gp, dict(noise1=3.0, frac1=0.5, gap=float(gp))) for gp in [0.1, 1, 10]]
-        )
+        grid = ([("noise1", n1, dict(noise1=float(n1), frac1=0.5)) for n1 in [1, 2, 4, 8]]
+                + [("mis", v, dict(noise1=3.0, frac1=0.5, mis=v)) for v in [0.0, 0.5, 1.0, 2.0]]
+                + [("frac1", f1, dict(noise1=3.0, frac1=f1)) for f1 in [0.05, 0.1, 0.2, 0.35, 0.5]]
+                + [("gap", gp, dict(noise1=3.0, frac1=0.5, gap=float(gp))) for gp in [0.1, 1, 10]])
         rows = []
         for var, val, kws in grid:
             bt = beta_table(synth(**kws))
@@ -82,14 +66,11 @@ def main():
             rows.append(bt)
         df = pd.concat(rows)
         df.to_csv(f"{out}/s5_beta.csv", index=False)
-        write_booktabs(
-            df[df.family == "gauss"],
-            ["varied", "value", "metric", "beta0", "beta1", "omega", "V", "O", "R"],
-            ["Varied", "Value", "Metric", "$\\beta_0$", "$\\beta_1$", "$\\omega$", "$V$", "$O$", "$R=V/O$"],
-            f"{out}/s5_beta.tex",
-            caption="How group coefficients drive the oracle gain (Gaussian sketch).",
-            label="tab:s5_beta",
-        )
+        write_booktabs(df[df.family == "gauss"],
+                       ["varied", "value", "metric", "beta0", "beta1", "omega", "V", "O", "R"],
+                       ["Varied", "Value", "Metric", "$\\beta_0$", "$\\beta_1$", "$\\omega$", "$V$", "$O$", "$R=V/O$"],
+                       f"{out}/s5_beta.tex", caption="How group coefficients drive the oracle gain (Gaussian sketch).",
+                       label="tab:s5_beta")
         plot_beta_gain(df, f"{out}/s5_beta.png")
     print(f"done in {time.time() - t0:.0f}s; outputs in {out}/")
 

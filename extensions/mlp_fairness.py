@@ -1,54 +1,17 @@
 #!/usr/bin/env python3
-"""Extension: fairness distortion of row-sampling sketches when the model is an MLP instead of a linear model.
+"""Fairness distortion of row-sampling sketches when the model is an MLP instead of a linear model.
 
-Question. Sections 4 and 5 analyze least squares and ridge logistic regression. Does compressing the data by row sampling
-distort the fairness of a neural network in the same way, and do the paper's sampling rules (leverage, stratified,
-targeted), computed from the LINEAR model, still help when the deployed model is an MLP?
-
-Design.
-  * Only row-sampling sketches are run. Gaussian sketches and CountSketch replace rows by random combinations of rows, which
-    is meaningful for a linear model (the loss is a function of A x) but not for an MLP, whose prediction on a mixed row is
-    not a mix of predictions; for classification they also erase the labels (Proposition badchoice).
-  * Each sketch draws m indices with probabilities q (multinomial counts K_i) and trains on the distinct rows with weights
-    w_i = K_i / (m q_i), the same estimator as the paper. Weights are rescaled to mean one before training.
-  * The same draws are used to fit the linear model of the paper and the MLP, so the two are compared on identical samples.
-  * The MLP and its training loop follow misssketch/broader.py: ReLU MLP, AdamW, early stopping on 10% of the training rows,
-    weighted squared loss (regression) or weighted logistic loss (classification).
-  * Training noise. An MLP fit on the FULL data still changes with the random seed (initialization, minibatch order). The
-    reference value of each metric is the average over --full_seeds full-data fits, and the script also reports the
-    distortion of each full-data fit from that average ("full data, other seeds"). Sketch distortion below this floor is
-    not attributable to sketching.
-
-Metrics (evaluated on all n rows, the population the model serves, as in the paper).
-  IF   the model's average input-gradient norm, mean_i ||grad_z f(z_i)||, over the non-constant features. For a linear model
-       this is ||x|| without the intercept, the Lipschitz constant used in the paper. f is the prediction (regression) or
-       the logit (classification). Also IF_p95, the 95th percentile, a local-Lipschitz estimate.
-  GFE  regression: mean prediction in group 0 minus group 1 (equals v'x for a linear model).
-  MSE  regression: MSE in group 0 minus MSE in group 1.
-  DP, TPR, FPR  classification: gaps in mean predicted probability, overall and among positives / negatives, as in the paper.
-  Distortion of a draw: rel = |metric(sketch)| / |reference| - 1 (signed; positive = less fair), summarized as
-  mean_abs_rel, mean_rel, q10_rel, q90_rel and frac_worse, the same columns as the classification CSVs.
-
-Methods (probabilities computed from the full-data LINEAR model, the oracle versions of the paper's rules).
-  regression:      unif; lev (leverage, p.q_lev); strat (uniform within groups, split m_g ~ sqrt(beta_g) for the
-                   --strat_target, Section 5).
-  classification:  unif; lev (p.q_lev); tgt (targeted, scores for IF, DP, TPR, FPR, mu = 0.2); strat_tgt (stratified targeted).
-
-Outputs in --out:
-  mlp_<task>_<dataset>_draws.csv     every draw: model, method, m, rep, metric, value, reference
-  mlp_<task>_<dataset>_m.csv         summary per model, method, m, metric (+ floor_abs_rel, the seed-noise floor)
-  mlp_<task>_<dataset>_m.png         mean |relative change| against m, MLP solid and linear dashed, seed floor shaded
+Sampling probabilities come from the full-data linear model; the MLP and the linear model are fit on the same draws.
 
 Usage:
-  python extensions/mlp_fairness.py --task both --out results/mlp_ext --diab --enem_path ENEM.csv          # real data
-  python extensions/mlp_fairness.py --task both --synthetic --quick --out results/mlp_test                  # smoke test
-Options: --hidden 64,32 (misssketch mlp_small; 256,128,64 = mlp_medium), --full_seeds 5, --reps 20, --ms 80,160,...,
---device auto, --max_epochs 200, --patience 20, --no_linear."""
+  python extensions/mlp_fairness.py --task both --out results/mlp_ext --diab --enem_path ENEM.csv
+  python extensions/mlp_fairness.py --task both --synthetic --quick --out results/mlp_test
+"""
 import argparse, math, os, sys, time
 import numpy as np
 import pandas as pd
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))   # library modules live at the repo root
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 import fs_common as fc
 import lib_classification as cl
 from lib_coreset import scores as tgt_scores, _strat as strat_draw, _mix, _draw
@@ -63,17 +26,12 @@ P = fc.PALETTE
 COLOR = {"unif": P["unif"], "lev": P["lev"], "strat": P["strat_unif"], "tgt": P["oracle"], "strat_tgt": P["strat_proxy"]}
 
 
-# ------------------------------------------------------------------------------------------------
-# data
-# ------------------------------------------------------------------------------------------------
 class Task:
-    """Common view of a regression Problem or a classification P: features X (non-constant columns only, for the MLP),
-    the full design used by the linear model, target, groups, evaluation sets."""
 
     def __init__(self, kind, p):
         self.kind, self.p, self.name = kind, p, p.name
         Z = p.A if kind == "reg" else p.Z
-        self.keep = np.std(Z, axis=0) > 1e-12                 # drop the intercept; the MLP has its own biases
+        self.keep = np.std(Z, axis=0) > 1e-12
         mu, sd = Z[:, self.keep].mean(0), Z[:, self.keep].std(0)
         self.X = ((Z[:, self.keep] - mu) / sd).astype(np.float32)
         self.sd = sd
@@ -107,11 +65,7 @@ def load_tasks(a):
     return out
 
 
-# ------------------------------------------------------------------------------------------------
-# sampling (probabilities from the full-data linear model)
-# ------------------------------------------------------------------------------------------------
 def reg_strat_split(T, m, target):
-    """Oracle split for uniform sampling within groups: m_g ~ sqrt(beta_g), beta_g = n_g s_g - zeta_g (Definition beta)."""
     p = T.p
     C, r = p.C[target], p.r
     beta = []
@@ -125,7 +79,6 @@ def reg_strat_split(T, m, target):
 
 
 def draw(T, meth, m, rng, a):
-    """Indices of the distinct sampled rows and their weights K_i/(m q_i)."""
     n = T.n
     if meth == "unif":
         return _draw(np.full(n, 1.0 / n), m, rng)
@@ -149,11 +102,7 @@ def draw(T, meth, m, rng, a):
     raise KeyError(meth)
 
 
-# ------------------------------------------------------------------------------------------------
-# models
-# ------------------------------------------------------------------------------------------------
 def fit_linear(T, I, w):
-    """The paper's model on the same draw: weighted least squares, or weighted ridge logistic regression (lib_classification.fit)."""
     p = T.p
     if T.kind == "reg":
         sw = np.sqrt(w)
@@ -162,11 +111,10 @@ def fit_linear(T, I, w):
 
 
 def linear_outputs(T, x):
-    """Prediction (or logit) and the input-gradient norm of the linear model, in the MLP's standardized feature units."""
     Z = T.p.A if T.kind == "reg" else T.p.Z
     f = Z @ x
     if T.kind == "reg":
-        f = (f - T.y_mean) / T.y_sd                            # same scale as the MLP's standardized target
+        f = (f - T.y_mean) / T.y_sd
         gnorm = np.linalg.norm(x[T.keep] * T.sd) / T.y_sd
     else:
         gnorm = np.linalg.norm(x[T.keep] * T.sd)
@@ -174,7 +122,6 @@ def linear_outputs(T, x):
 
 
 def fit_mlp(T, I, w, seed, a):
-    """ReLU MLP trained as in misssketch/broader.py (_torch_fit): AdamW, early stopping on 10% of the training rows."""
     import torch
     import torch.nn as nn
     torch.manual_seed(seed)
@@ -189,7 +136,7 @@ def fit_mlp(T, I, w, seed, a):
     opt = torch.optim.AdamW(model.parameters(), lr=a.lr, weight_decay=a.weight_decay)
 
     w = np.asarray(w, np.float64)
-    w = w / w.mean()                                           # misssketch _normalize_sample_weights (floor 0)
+    w = w / w.mean()
     X = torch.as_tensor(T.X[I], device=dev)
     y = torch.as_tensor(T.t[I], device=dev)
     W = torch.as_tensor(w.astype(np.float32), device=dev)
@@ -229,7 +176,6 @@ def fit_mlp(T, I, w, seed, a):
 
 
 def mlp_outputs(T, model, a):
-    """Output and per-row input-gradient norm on all n rows (each output depends only on its own row)."""
     import torch
     f, gn = [], []
     for lo in range(0, T.n, 8192):
@@ -241,9 +187,6 @@ def mlp_outputs(T, model, a):
     return np.concatenate(f).astype(np.float64), np.concatenate(gn).astype(np.float64)
 
 
-# ------------------------------------------------------------------------------------------------
-# metrics
-# ------------------------------------------------------------------------------------------------
 def metrics(T, f, gnorm):
     out = {"IF": gnorm.mean(), "IF_p95": np.quantile(gnorm, 0.95)}
     g0, g1 = T.g == 0, T.g == 1
@@ -298,7 +241,6 @@ def plot(summary, T, path, min_base):
     plt.close(fig)
 
 
-# ------------------------------------------------------------------------------------------------
 def run_task(T, a, rng):
     tag = f"mlp_{T.kind}_{T.name}"
     meths = [m for m in (REG_METH if T.kind == "reg" else CLS_METH) if m in a.methods]
@@ -307,7 +249,7 @@ def run_task(T, a, rng):
     ms = a.ms or [x for x in [4 * d_lin * 2 ** i for i in range(7)] if x < T.n // 4]
     print(f"[{T.name}] {T.kind} n={T.n} features={T.X.shape[1]} minority={T.g.mean():.3f} m={ms}", flush=True)
 
-    # references: average over full-data fits (MLP: several seeds; linear: deterministic), and the seed-noise floor
+
     ref, floors = {}, {}
     full_vals = []
     for s in range(a.full_seeds):
@@ -339,7 +281,7 @@ def run_task(T, a, rng):
                     for met, v in metrics(T, f, gn).items():
                         rows.append(dict(model=model, method=meth, m=m, rep=rep, metric=met, value=v, reference=ref[(model, met)]))
         print(f"  m={m}: {time.time() - t0:.0f}s", flush=True)
-        draws = pd.DataFrame(rows)                              # rewrite after every m, so a long run can be inspected
+        draws = pd.DataFrame(rows)
         draws.to_csv(os.path.join(a.out, f"{tag}_draws.csv"), index=False)
         summ = summarize(draws[draws.method != "full (other seeds)"], floors)
         summ.to_csv(os.path.join(a.out, f"{tag}_m.csv"), index=False)

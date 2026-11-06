@@ -43,11 +43,6 @@ def objective(K, q):
     return float(np.sum(np.sum(K**2, 1) / q) - np.sum(np.sum(K, 0) ** 2))
 
 
-def pilot_weight(K, q, f):
-    vu, vq = objective(K, np.full(len(q), 1.0 / len(q))), max(objective(K, q), 1e-300)
-    return (f / vu) / (f / vu + (1 - f) / vq)
-
-
 def alpha_run(p, meth, m, rng):
     m_p = p.m_p
     xp, Hh, Ip, wp = _pilot(p, m_p, rng)
@@ -59,7 +54,9 @@ def alpha_run(p, meth, m, rng):
     else:
         q = _mix(np.linalg.norm(Ke, axis=1), p.mu)
     K = Ke if meth in ("tgt_alpha", "imp_alpha") else p.K_exact
-    alpha = pilot_weight(K, q, m_p / m)
+    f = m_p / m
+    vu, vq = objective(K, np.full(len(q), 1.0 / len(q))), max(objective(K, q), 1e-300)
+    alpha = (f / vu) / (f / vu + (1 - f) / vq)
     p.alphas.setdefault(meth, []).append(alpha)
     I, w = _draw(q, m - m_p, rng)
     return fit(p.A[np.concatenate([Ip, I])], np.concatenate([alpha * wp, (1 - alpha) * w]), p.lam)

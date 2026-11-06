@@ -8,12 +8,10 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."
 import lib_classification as cl
 from lib_classification import P, make_data, METH, PLOT_METH, NEWTON
 
-SPECS = {
-    "s4c_synth_m": dict(x="m", label="sketch size m", logx=True, meths=PLOT_METH),
-    "s4c_synth_gap": dict(x="gap", label="group shift", logx=False, meths=PLOT_METH),
-    "s4c_synth_minority": dict(x="frac1", label="minority fraction", logx=False, meths=PLOT_METH),
-    "s4c_synth_steps": dict(x="T", label="Newton steps", logx=False, meths=NEWTON),
-}
+SPECS = {"s4c_synth_m": dict(x="m", label="sketch size m", logx=True, meths=PLOT_METH),
+         "s4c_synth_gap": dict(x="gap", label="group shift", logx=False, meths=PLOT_METH),
+         "s4c_synth_minority": dict(x="frac1", label="minority fraction", logx=False, meths=PLOT_METH),
+         "s4c_synth_steps": dict(x="T", label="Newton steps", logx=False, meths=NEWTON)}
 
 
 def main():
@@ -43,28 +41,17 @@ def main():
         cl.emit(a.out, "s4c_synth_m", cl.sweep(lambda x: p, ms, "m", a.reps, rng, a.m, PLOT_METH), SPECS["s4c_synth_m"])
     if "gap" in sw:
         gs = [0.5, 2.0, 3.5] if q else [0.5, 1.0, 2.0, 3.0, 4.0]
-        cl.emit(
-            a.out,
-            "s4c_synth_gap",
-            cl.sweep(lambda x: mk(gap=x), gs, "gap", a.reps, rng, a.m, PLOT_METH, T=a.T),
-            SPECS["s4c_synth_gap"],
-        )
+        cl.emit(a.out, "s4c_synth_gap", cl.sweep(lambda x: mk(gap=x), gs, "gap", a.reps, rng, a.m, PLOT_METH, T=a.T),
+                SPECS["s4c_synth_gap"])
     if "minority" in sw:
         fs = [0.05, 0.2, 0.5] if q else [0.02, 0.05, 0.1, 0.2, 0.35, 0.5]
-        cl.emit(
-            a.out,
-            "s4c_synth_minority",
-            cl.sweep(lambda x: mk(frac1=x), fs, "frac1", a.reps, rng, a.m, PLOT_METH, T=a.T),
-            SPECS["s4c_synth_minority"],
-        )
+        cl.emit(a.out, "s4c_synth_minority",
+                cl.sweep(lambda x: mk(frac1=x), fs, "frac1", a.reps, rng, a.m, PLOT_METH, T=a.T),
+                SPECS["s4c_synth_minority"])
     if "steps" in sw:
         Ts = [1, 2, 4] if q else [1, 2, 3, 4, 6, 10]
-        cl.emit(
-            a.out,
-            "s4c_synth_steps",
-            cl.sweep(lambda x: p, Ts, "T", a.reps, rng, a.m, NEWTON, T=None),
-            SPECS["s4c_synth_steps"],
-        )
+        cl.emit(a.out, "s4c_synth_steps", cl.sweep(lambda x: p, Ts, "T", a.reps, rng, a.m, NEWTON, T=None),
+                SPECS["s4c_synth_steps"])
     print(f"done in {time.time() - t0:.0f}s; outputs in {a.out}/")
 
 

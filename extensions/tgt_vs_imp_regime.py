@@ -1,17 +1,4 @@
-"""When should targeted sampling beat leverage sampling? A synthetic knob tau (stored as tau1).
-
-The groups differ in feature 1 (mean shift) and in the outcome model, so the DP gap depends mostly on feature 1.
-Feature 1 is multiplied by a lognormal factor exp(tau z_i), z_i ~ N(0,1), normalised to mean square 1, so as tau
-grows a few rows with extreme feature-1 values drive the DP gap. The last k_noise features are pure noise (true
-coefficient 0) shared by both groups. Leverage sampling (q ~ z_i^T (Z^T Z + lam I)^{-1} z_i) spreads its budget over
-all d directions, most of them noise; targeted sampling (q ~ |kappa_i|) concentrates on the rows that move the gap.
-(Heavy tails on the noise features instead, argument tau of make(), barely change the predicted ratio.)
-
-For each tau we report
-  pred   = V(leverage) / V(targeted oracle), from the closed-form objective at x^ (no sampling),
-  and the observed mean |relative change| of the target metric for each method, divided by leverage's.
-If the observed targeted/leverage ratio tracks 1/pred, the ratio can be computed before sketching to say when
-targeting is worth it.
+"""When does targeted sampling beat leverage sampling? Sweeps tau, the tail weight of the feature that drives the DP gap.
 
 Usage: python extensions/tgt_vs_imp_regime.py [--reps 100] [--quick] [--target DP] [--out results/tgt_vs_imp]
 """
@@ -31,13 +18,12 @@ METHODS = ["c_unif", "c_lev", "c_tgt_oracle", "c_tgt_proxy"]
 
 
 def make(tau1, n=20000, d=30, k_noise=26, frac1=0.2, gap=1.0, off=-1.0, mis=0.5, tau=0.0, seed=0):
-    """Z = [1, feature 1, d-2 signal-free... ] with the last k_noise columns pure noise scaled by exp(tau z_i)."""
     rng = np.random.default_rng(seed)
     g = (rng.random(n) < frac1).astype(int)
     Z = np.c_[np.ones(n), rng.standard_normal((n, d - 1))]
     Z[g == 1, 1] += gap
     b1 = np.exp(tau1 * rng.standard_normal(n))
-    Z[:, 1] *= b1 / np.sqrt((b1 ** 2).mean())        # heavy tails on the gap feature: a few rows drive the DP gap
+    Z[:, 1] *= b1 / np.sqrt((b1 ** 2).mean())
     beta = rng.standard_normal(d) * 0.8 / np.sqrt(d / 5)
     dev = mis * rng.standard_normal(d) / np.sqrt(d)
     noise = slice(d - k_noise, d)
@@ -50,12 +36,11 @@ def make(tau1, n=20000, d=30, k_noise=26, frac1=0.2, gap=1.0, off=-1.0, mis=0.5,
 
 
 def objective(K, q):
-    """V(q) = sum_i ||kappa_i||^2 / q_i - ||sum_i kappa_i||^2 (Theorem cls-target (d))."""
     return float(np.sum(np.sum(K ** 2, 1) / q) - np.sum(np.sum(K, 0) ** 2))
 
 
 def one_tau(tau, ms, reps, target, mu, f, seed):
-    p = make(tau, seed=seed)  # tau is the gap-feature tail knob
+    p = make(tau, seed=seed)
     p.target, p.mu = target, mu
     a, K = lc.scores(p, p.xh, p.H, target)
     pred = objective(K, p.q_lev) / objective(K, lc._mix(a, mu))

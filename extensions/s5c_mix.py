@@ -15,11 +15,8 @@ from fs_common import ensure_scienceplots
 METH = ["unif", "tgt_oracle", "tgt_proxy", "lev"]
 MUS = [0.2, 0.5, 0.8]
 M_FACTORS = [10, 40, 160]
-STYLE = {
-    "tgt_oracle": ("targeted, oracle", PALETTE["oracle"]),
-    "tgt_proxy": ("targeted, proxy", PALETTE["proxy"]),
-    "lev": ("leverage", PALETTE["lev"]),
-}
+STYLE = {"tgt_oracle": ("targeted, oracle", PALETTE["oracle"]), "tgt_proxy": ("targeted, proxy", PALETTE["proxy"]),
+         "lev": ("leverage", PALETTE["lev"])}
 
 
 def runner(p, meth, m, rng):

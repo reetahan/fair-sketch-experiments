@@ -15,11 +15,8 @@ from fs_common import ensure_scienceplots
 METH = ["c_unif", "c_tgt_oracle", "c_tgt_proxy", "c_strat_tgt_proxy"]
 FRACS = [0.05, 0.1, 0.25, 0.5, 0.75]
 M_FACTORS = [10, 40, 160]
-STYLE = {
-    "c_tgt_oracle": ("targeted, oracle", PALETTE["oracle"]),
-    "c_tgt_proxy": ("targeted, proxy", PALETTE["proxy"]),
-    "c_strat_tgt_proxy": ("stratified targeted, proxy", PALETTE["strat_proxy"]),
-}
+STYLE = {"c_tgt_oracle": ("targeted, oracle", PALETTE["oracle"]), "c_tgt_proxy": ("targeted, proxy", PALETTE["proxy"]),
+         "c_strat_tgt_proxy": ("stratified targeted, proxy", PALETTE["strat_proxy"])}
 
 
 def pilot_sweep(p, reps, rng, fracs, factors):
@@ -34,15 +31,10 @@ def pilot_sweep(p, reps, rng, fracs, factors):
     return pd.concat(frames)
 
 
-def ratio_table(df):
+def plot(df, path):
     uni = df[df.method == "c_unif"].groupby(["m", "metric"]).mean_abs_rel.mean().rename("uniform")
     d = df[df.method != "c_unif"].join(uni, on=["m", "metric"])
     d["ratio"] = d.mean_abs_rel / d.uniform
-    return d
-
-
-def plot(df, path):
-    d = ratio_table(df)
     ms = sorted(d.m.unique())
     fig, axes = plt.subplots(len(ms), len(MET), figsize=(3.4 * len(MET), 2.9 * len(ms) + 0.6), squeeze=False, sharex=True)
     for i, m in enumerate(ms):

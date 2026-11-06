@@ -25,22 +25,16 @@ def main():
         if want("bounds_table"):
             save_vanilla_table(vanilla_table(rp, mm, reps, rng), out, f"bounds_{rp.name}")
         if want("real_m"):
-            ms = [
-                x
-                for x in [4 * rp.d, 8 * rp.d, 16 * rp.d, 32 * rp.d, 64 * rp.d, 128 * rp.d, 256 * rp.d]
-                if x < rp.n // 2
-            ]
+            ms = [x for x in [4 * rp.d, 8 * rp.d, 16 * rp.d, 32 * rp.d, 64 * rp.d, 128 * rp.d, 256 * rp.d]
+                  if x < rp.n // 2]
             run_sweep_sd(
                 f"real_m_{rp.name}", ms, lambda x, p=rp: p, mm, reps, rng, out, "sketch size m", extra_m=lambda x: x
             )
     if want("ablate") and probs:
         base = probs[0]
         mm = min(m, base.n // 4)
-        for kind, vals in (
-            ("scale_col", [1, 3, 10, 30]),
-            ("subsample0", [1.0, 0.5, 0.2, 0.1]),
-            ("noise1", [0.0, 0.5, 1.0, 2.0]),
-        ):
+        for kind, vals in (("scale_col", [1, 3, 10, 30]), ("subsample0", [1.0, 0.5, 0.2, 0.1]),
+                           ("noise1", [0.0, 0.5, 1.0, 2.0])):
             frames = []
             for v in vals:
                 dfv = vanilla_table(alter(base, kind, v, args.seed), mm, reps, rng)

@@ -5,26 +5,13 @@ from lib_logreg_sketch import fit_logreg_sketch_code
 
 sig = lambda t: 0.5 * (1 + np.tanh(0.5 * t))
 METH = ["samp_unif", "samp_lev", "newton_cs", "newton_gauss", "logreg_sketch", "naive_gauss", "naive_cs"]
-LAB = {
-    "samp_unif": "1: sampled, uniform",
-    "samp_lev": "1: sampled, leverage",
-    "samp_imp": "1: sampled, importance (oracle)",
-    "newton_cs": "2: Newton-Hessian, CountSketch",
-    "newton_gauss": "2: Newton-Hessian, Gaussian",
-    "logreg_sketch": "3: LogReg-sketch (Munteanu et al. 2021)",
-    "naive_gauss": "3: naive Gaussian",
-    "naive_cs": "3: naive CountSketch",
-}
-COL = {
-    "samp_unif": PALETTE["unif"],
-    "samp_lev": PALETTE["lev"],
-    "samp_imp": PALETTE["is"],
-    "newton_cs": PALETTE["cs"],
-    "newton_gauss": PALETTE["gauss"],
-    "logreg_sketch": PALETTE["logreg"],
-    "naive_gauss": "tab:gray",
-    "naive_cs": "0.6",
-}
+LAB = {"samp_unif": "1: sampled, uniform", "samp_lev": "1: sampled, leverage",
+       "samp_imp": "1: sampled, importance (oracle)", "newton_cs": "2: Newton-Hessian, CountSketch",
+       "newton_gauss": "2: Newton-Hessian, Gaussian", "logreg_sketch": "3: LogReg-sketch (Munteanu et al. 2021)",
+       "naive_gauss": "3: naive Gaussian", "naive_cs": "3: naive CountSketch"}
+COL = {"samp_unif": PALETTE["unif"], "samp_lev": PALETTE["lev"], "samp_imp": PALETTE["is"], "newton_cs": PALETTE["cs"],
+       "newton_gauss": PALETTE["gauss"], "logreg_sketch": PALETTE["logreg"], "naive_gauss": "tab:gray",
+       "naive_cs": "0.6"}
 MET = ["IF", "DP", "TPR", "FPR"]
 RATE_METRICS = ("DP", "TPR", "FPR")
 
@@ -75,11 +62,8 @@ class P:
         self.q_imp = 0.5 * self.q_imp / self.q_imp.sum() + 0.5 / self.n
         lev = (Z * np.linalg.solve(Z.T @ Z + lam * np.eye(self.d), Z.T).T).sum(1)
         self.q_lev = lev / lev.sum()
-        self.sets = {
-            "DP": [g == 0, g == 1],
-            "TPR": [(g == 0) & (y > 0), (g == 1) & (y > 0)],
-            "FPR": [(g == 0) & (y < 0), (g == 1) & (y < 0)],
-        }
+        self.sets = {"DP": [g == 0, g == 1], "TPR": [(g == 0) & (y > 0), (g == 1) & (y > 0)],
+                     "FPR": [(g == 0) & (y < 0), (g == 1) & (y < 0)]}
         self.f = lambda x: np.logaddexp(0, -(self.A @ x)).sum() + 0.5 * lam * x @ x
         self.fh = self.f(self.xh)
         self.base = self.gaps(self.xh)
@@ -197,19 +181,9 @@ def experiment(p, m, reps, rng, meths=METH, runner=None):
         for k in MET:
             v = np.array(S[k])
             rows.append(
-                dict(
-                    method=meth,
-                    metric=k,
-                    m=m,
-                    reps=reps,
-                    mean_rel=v.mean(),
-                    mean_abs_rel=np.abs(v).mean(),
-                    q10_rel=np.quantile(v, 0.1),
-                    q90_rel=np.quantile(v, 0.9),
-                    frac_worse=(v > 0).mean(),
-                    base=p.base[k],
-                    loss_ratio=float(np.median(LR)),
-                )
+                dict(method=meth, metric=k, m=m, reps=reps, mean_rel=v.mean(), mean_abs_rel=np.abs(v).mean(),
+                     q10_rel=np.quantile(v, 0.1), q90_rel=np.quantile(v, 0.9), frac_worse=(v > 0).mean(),
+                     base=p.base[k], loss_ratio=float(np.median(LR)))
             )
     return pd.DataFrame(rows)
 
@@ -232,47 +206,22 @@ def class_view(df, xcol, logx, meths, min_base=0.03, floor=1e-6):
 def draw(df, xcol, xlabel, path, meths=None, logx=True, min_base=0.03, floor=1e-6):
     meths = meths or PLOT_METH
     series = [dict(key=k, label=LAB[k], color=COL[k]) for k in meths]
-    plot_sd(
-        class_view(df, xcol, logx, meths, min_base, floor),
-        xcol,
-        xlabel,
-        path,
-        series,
-        "method",
-        MET,
-        logx=logx,
-        floor=floor,
-        tight_size=True,
-        abs_metrics=RATE_METRICS,
-    )
+    plot_sd(class_view(df, xcol, logx, meths, min_base, floor), xcol, xlabel, path, series, "method", MET, logx=logx,
+            floor=floor, tight_size=True, abs_metrics=RATE_METRICS)
 
 
 def emit(out, name, df, spec, min_base=0.03):
     df.to_csv(f"{out}/{name}.csv", index=False)
-    draw(
-        df,
-        spec["x"],
-        spec["label"],
-        f"{out}/{name}.png",
-        meths=spec.get("meths"),
-        logx=spec.get("logx", True),
-        min_base=min_base,
-    )
+    draw(df, spec["x"], spec["label"], f"{out}/{name}.png", meths=spec.get("meths"), logx=spec.get("logx", True),
+         min_base=min_base)
 
 
 def replot(out, specs, min_base=0.03):
     for name, spec in specs.items():
         f = f"{out}/{name}.csv"
         if os.path.exists(f):
-            draw(
-                pd.read_csv(f),
-                spec["x"],
-                spec["label"],
-                f"{out}/{name}.png",
-                meths=spec.get("meths"),
-                logx=spec.get("logx", True),
-                min_base=min_base,
-            )
+            draw(pd.read_csv(f), spec["x"], spec["label"], f"{out}/{name}.png", meths=spec.get("meths"),
+                 logx=spec.get("logx", True), min_base=min_base)
 
 
 def replot_datasets(out, prefix, spec_fn, min_base=0.01):

@@ -40,15 +40,8 @@ def set_style(latex=False, fontsize=16):
         print("SciencePlots not installed (pip install SciencePlots); using the matplotlib default style")
         USETEX = False
     if fontsize:
-        plt.rcParams.update(
-            {
-                "font.size": fontsize,
-                "axes.labelsize": fontsize,
-                "xtick.labelsize": fontsize - 1,
-                "ytick.labelsize": fontsize - 1,
-                "legend.fontsize": fontsize - 1,
-            }
-        )
+        plt.rcParams.update({"font.size": fontsize, "axes.labelsize": fontsize, "xtick.labelsize": fontsize - 1,
+                             "ytick.labelsize": fontsize - 1, "legend.fontsize": fontsize - 1})
 
 
 def legend_above(fig, axes, top, **kw):
@@ -110,19 +103,9 @@ FAMS = ["gauss", "cs", "unif", "lev"]   # "is" (residual-weighted oracle) is sti
 SFAMS = ["gauss", "cs", "unif"]
 METRICS = ["IF", "GFE", "MSE"]
 FAM_LABEL = {"gauss": "Gaussian", "cs": "CountSketch", "unif": "Uniform", "lev": "Leverage", "is": "Importance (oracle)"}
-PALETTE = {
-    "gauss": "tab:green",
-    "cs": "tab:orange",
-    "unif": "tab:blue",
-    "lev": "tab:red",
-    "is": "tab:gray",
-    "logreg": "tab:olive",
-    "strat_unif": "tab:cyan",
-    "oracle": "tab:brown",
-    "proxy": "tab:pink",
-    "strat_proxy": "tab:purple",
-    "vanilla": "dimgray",
-}
+PALETTE = {"gauss": "tab:green", "cs": "tab:orange", "unif": "tab:blue", "lev": "tab:red", "is": "tab:gray",
+           "logreg": "tab:olive", "strat_unif": "tab:cyan", "oracle": "tab:brown", "proxy": "tab:pink",
+           "strat_proxy": "tab:purple", "vanilla": "dimgray"}
 COLOR = PALETTE
 LAW_URL = "https://raw.githubusercontent.com/damtharvey/law-school-dataset/main/law_dataset.csv"
 
@@ -186,23 +169,13 @@ class Problem:
 
     def signed(self, xt):
         xh = self.xhat
-        return np.array(
-            [
-                np.linalg.norm(xt) / np.linalg.norm(xh) - 1.0,
-                abs(self.v @ xt) - abs(self.v @ xh),
-                abs(self.gap(xt)) - abs(self.gap(xh)),
-            ]
-        )
+        return np.array([np.linalg.norm(xt) / np.linalg.norm(xh) - 1.0, abs(self.v @ xt) - abs(self.v @ xh),
+                         abs(self.gap(xt)) - abs(self.gap(xh))])
 
     def distortions(self, xt):
         xh = self.xhat
-        dist = np.array(
-            [
-                abs(np.linalg.norm(xt) / np.linalg.norm(xh) - 1.0),
-                abs(abs(self.v @ xt) - abs(self.v @ xh)),
-                abs(abs(self.gap(xt)) - abs(self.gap(xh))),
-            ]
-        )
+        dist = np.array([abs(np.linalg.norm(xt) / np.linalg.norm(xh) - 1.0), abs(abs(self.v @ xt) - abs(self.v @ xh)),
+                         abs(abs(self.gap(xt)) - abs(self.gap(xh)))])
         D = xt - xh
         J = np.array([D @ D, (self.v @ D) ** 2, (self.w @ D) ** 2])
         return dist, J
@@ -269,22 +242,16 @@ def bounds(prob, fam, m, eps, eta=0.1):
     S = sigma_theory(prob, fam, m)
     T, V, W = np.trace(S), prob.v @ S @ prob.v, prob.w @ S @ prob.w
     xh = prob.xhat
-    pred = {
-        "IF": np.sqrt(max(xh @ S @ xh, 0)) / np.linalg.norm(xh) ** 2,
-        "GFE": np.sqrt(max(V, 0)),
-        "MSE": 2 * (1 / prob.n0 + 1 / prob.n1) * np.sqrt(max(W, 0)),
-    }
+    pred = {"IF": np.sqrt(max(xh @ S @ xh, 0)) / np.linalg.norm(xh) ** 2, "GFE": np.sqrt(max(V, 0)),
+            "MSE": 2 * (1 / prob.n0 + 1 / prob.n1) * np.sqrt(max(W, 0))}
     out = {met: dict(pred=pred[met]) for met in METRICS}
     r0, r1 = np.linalg.norm(prob.rg[0]), np.linalg.norm(prob.rg[1])
     rn = np.linalg.norm(prob.r)
     n0, n1 = prob.n0, prob.n1
 
     def prop1(gam):
-        return {
-            "IF": gam / (prob.sigd * np.linalg.norm(xh)),
-            "GFE": np.linalg.norm(prob.v) * gam / prob.sigd,
-            "MSE": 2 * (r0 / n0 + r1 / n1) * gam + (1 / n0 + 1 / n1) * gam**2,
-        }
+        return {"IF": gam / (prob.sigd * np.linalg.norm(xh)), "GFE": np.linalg.norm(prob.v) * gam / prob.sigd,
+                "MSE": 2 * (r0 / n0 + r1 / n1) * gam + (1 / n0 + 1 / n1) * gam**2}
 
     if eps < 1:
         p_tight = prop1(eps / (1 - eps) * rn)
@@ -339,26 +306,11 @@ def vanilla_table(prob, m, reps, rng, delta=0.1, eta=0.1, fams=FAMS):
         B = bounds(prob, fam, m, eps_q, eta)
         for j, met in enumerate(METRICS):
             rows.append(
-                dict(
-                    dataset=prob.name,
-                    m=m,
-                    family=fam,
-                    metric=met,
-                    ols_value=ols[met],
-                    emp_mean=D[:, j].mean(),
-                    emp_rms=np.sqrt((D[:, j] ** 2).mean()),
-                    emp_q90=np.quantile(D[:, j], 0.9),
-                    pred_rms=B[met]["pred"],
-                    prop1_sqrt=B[met]["prop1_sqrt"],
-                    prop1_tight=B[met]["prop1_tight"],
-                    thm1=B[met]["thm1"],
-                    thm1_kfree=B[met]["thm1_kfree"],
-                    eps_q=eps_q,
-                    reps=reps,
-                    frac_failed=frac_failed,
-                    J_emp=JJ[:, j].mean(),
-                    J_theory=vanilla_value(prob, prob.C[met], fam) / m,
-                )
+                dict(dataset=prob.name, m=m, family=fam, metric=met, ols_value=ols[met], emp_mean=D[:, j].mean(),
+                     emp_rms=np.sqrt((D[:, j] ** 2).mean()), emp_q90=np.quantile(D[:, j], 0.9), pred_rms=B[met]["pred"],
+                     prop1_sqrt=B[met]["prop1_sqrt"], prop1_tight=B[met]["prop1_tight"], thm1=B[met]["thm1"],
+                     thm1_kfree=B[met]["thm1_kfree"], eps_q=eps_q, reps=reps, frac_failed=frac_failed,
+                     J_emp=JJ[:, j].mean(), J_theory=vanilla_value(prob, prob.C[met], fam) / m)
             )
     return pd.DataFrame(rows)
 
@@ -471,14 +423,8 @@ def strat_experiment(prob, m, m_pilot, reps, rng, fams=SFAMS, pilot_fam="gauss",
                     xt, ok = prob.solve_checked(SQ)
                     d, J = prob.distortions(xt)
                     Jan = bt[0]["beta"] / a0 + bt[1]["beta"] / a1
-                    add(
-                        method,
-                        d[mi],
-                        J[mi],
-                        Jan,
-                        dict(kappa=kap, share0=a0 / mm, sgn=prob.signed(xt)[mi] / sbase),
-                        ok=ok,
-                    )
+                    add(method, d[mi], J[mi], Jan, dict(kappa=kap, share0=a0 / mm, sgn=prob.signed(xt)[mi] / sbase),
+                        ok=ok)
             Jvan_ref = Jvan
             for method, lst in acc.items():
                 if len(lst) < 2:
@@ -487,27 +433,11 @@ def strat_experiment(prob, m, m_pilot, reps, rng, fams=SFAMS, pilot_fam="gauss",
                 Jhat = np.array([x[1] for x in lst])
                 sg = np.array([x[3]["sgn"] for x in lst])
                 Jan = float(np.mean([x[2] for x in lst]))
-                row = dict(
-                    dataset=prob.name,
-                    m=m,
-                    m_pilot=m_pilot,
-                    metric=metric,
-                    family=fam,
-                    method=method,
-                    J_analytic=Jan,
-                    ols_value=prob.ols_values()[metric],
-                    J_over_vanilla=Jan / Jvan_ref,
-                    Jhat_emp=Jhat.mean(),
-                    emp_mean=dist.mean(),
-                    emp_rms=np.sqrt((dist**2).mean()),
-                    reps=reps,
-                    frac_failed=fails.get(method, 0) / reps,
-                    mean_rel=sg.mean(),
-                    mean_abs_rel=np.abs(sg).mean(),
-                    q10_rel=np.quantile(sg, 0.1),
-                    q90_rel=np.quantile(sg, 0.9),
-                    frac_worse=(sg > 0).mean(),
-                )
+                row = dict(dataset=prob.name, m=m, m_pilot=m_pilot, metric=metric, family=fam, method=method,
+                           J_analytic=Jan, ols_value=prob.ols_values()[metric], J_over_vanilla=Jan / Jvan_ref,
+                           Jhat_emp=Jhat.mean(), emp_mean=dist.mean(), emp_rms=np.sqrt((dist**2).mean()), reps=reps,
+                           frac_failed=fails.get(method, 0) / reps, mean_rel=sg.mean(), mean_abs_rel=np.abs(sg).mean(),
+                           q10_rel=np.quantile(sg, 0.1), q90_rel=np.quantile(sg, 0.9), frac_worse=(sg > 0).mean())
                 if not vanilla_only:
                     row["R_oracle_gain"] = Jvan / Jor
                     row["J_over_oracle"] = Jan / Jor if Jor > 0 else np.nan
@@ -528,24 +458,8 @@ def strat_experiment(prob, m, m_pilot, reps, rng, fams=SFAMS, pilot_fam="gauss",
     return pd.DataFrame(rows)
 
 
-def make_synth(
-    n=20000,
-    d=10,
-    frac1=0.2,
-    cond=10.0,
-    gap=1.0,
-    gap_dir="top",
-    noise0=1.0,
-    noise1=1.0,
-    mis=0.5,
-    lev=0.0,
-    lev1=0.0,
-    spikes=0,
-    spike_out=30.0,
-    spike_val=1.0,
-    seed=0,
-    name="synthetic",
-):
+def make_synth(n=20000, d=10, frac1=0.2, cond=10.0, gap=1.0, gap_dir="top", noise0=1.0, noise1=1.0, mis=0.5, lev=0.0,
+               lev1=0.0, spikes=0, spike_out=30.0, spike_val=1.0, seed=0, name="synthetic"):
     rng = np.random.default_rng(seed)
     g = np.zeros(n, int)
     g[rng.choice(n, int(round(frac1 * n)), replace=False)] = 1
@@ -626,12 +540,8 @@ def load_acs(state="CA", year=2018, n_max=200000, group="sex", seed=0):
         df = df.sample(n_max, random_state=seed)
     g = (df["SEX"] == 2).astype(int).values if group == "sex" else (df["RAC1P"] != 1).astype(int).values
     num = pd.DataFrame(
-        {
-            "AGEP": df.AGEP.astype(float),
-            "AGEP2": df.AGEP.astype(float) ** 2,
-            "SCHL": df.SCHL.astype(float),
-            "WKHP": df.WKHP.astype(float),
-        }
+        {"AGEP": df.AGEP.astype(float), "AGEP2": df.AGEP.astype(float) ** 2, "SCHL": df.SCHL.astype(float),
+         "WKHP": df.WKHP.astype(float)}
     )
     cat = pd.get_dummies(df[["COW", "MAR", "RELP"]].astype(int).astype(str), drop_first=True).astype(float)
     X = _standardise(pd.concat([num.reset_index(drop=True), cat.reset_index(drop=True)], axis=1))
@@ -657,11 +567,8 @@ def alter(prob, kind, val, seed=0):
     return Problem(A, b, g, f"{prob.name}|{kind}={val}")
 
 
-ALTER_LABEL = {
-    "scale_col": "last-column shrink factor",
-    "subsample0": "group-0 fraction kept",
-    "noise1": "group-1 extra noise",
-}
+ALTER_LABEL = {"scale_col": "last-column shrink factor", "subsample0": "group-0 fraction kept",
+               "noise1": "group-1 extra noise"}
 
 
 def fmt(x):
@@ -675,25 +582,16 @@ def fmt(x):
 
 
 def write_booktabs(df, cols, headers, path, caption="", label=""):
-    lines = [
-        r"\begin{table}[t]",
-        r"\centering",
-        r"\small",
-        r"\begin{tabular}{" + "l" * 2 + "r" * (len(cols) - 2) + "}",
-        r"\toprule",
-        " & ".join(headers) + r" \\",
-        r"\midrule",
-    ]
+    lines = [r"\begin{table}[t]", r"\centering", r"\small", r"\begin{tabular}{" + "l" * 2 + "r" * (len(cols) - 2) + "}",
+             r"\toprule", " & ".join(headers) + r" \\", r"\midrule"]
     last = None
     for _, row in df.iterrows():
         if last is not None and row[cols[0]] != last:
             lines.append(r"\midrule")
         last = row[cols[0]]
         lines.append(
-            " & ".join(
-                fmt(row[c]) if c not in ("family", "metric", "method") else FAM_LABEL.get(row[c], str(row[c]))
-                for c in cols
-            )
+            " & ".join(fmt(row[c]) if c not in ("family", "metric", "method") else FAM_LABEL.get(row[c], str(row[c]))
+                       for c in cols)
             + r" \\"
         )
     lines += [r"\bottomrule", r"\end{tabular}"]
@@ -733,30 +631,10 @@ def save_strat_table(df, out, tag):
     df.to_csv(f"{out}/strat_{tag}.csv", index=False)
     write_booktabs(
         df,
-        [
-            "metric",
-            "family",
-            "method",
-            "ols_value",
-            "mean_abs_rel",
-            "mean_rel",
-            "frac_worse",
-            "J_over_vanilla",
-            "R_oracle_gain",
-            "kappa_hat",
-        ],
-        [
-            "Metric",
-            "Sketch",
-            "Method",
-            "OLS value",
-            "Mean $|$change$|$ (rel.)",
-            "Mean change (rel.)",
-            "\\% worse",
-            "$J/J_{\\rm van}$",
-            "$R$",
-            "$\\hat\\kappa$",
-        ],
+        ["metric", "family", "method", "ols_value", "mean_abs_rel", "mean_rel", "frac_worse", "J_over_vanilla",
+         "R_oracle_gain", "kappa_hat"],
+        ["Metric", "Sketch", "Method", "OLS value", "Mean $|$change$|$ (rel.)", "Mean change (rel.)", "\\% worse",
+         "$J/J_{\\rm van}$", "$R$", "$\\hat\\kappa$"],
         f"{out}/strat_{tag}.tex",
         caption=f"Unsketched (OLS), sketched (vanilla), oracle and proxy ({tag}). Changes are relative to OLS; positive = less fair.",
         label=f"tab:strat_{tag}",
@@ -898,12 +776,10 @@ def add_real_args(ap, acs_n=200000, hmda_n=200000):
 
 def load_real(args, law_fn, acs_fn, hmda_fn, extra=()):
     out = []
-    for name, skip, fn, how in (
-        ("LSAC (law school)", args.no_law, law_fn, "pass --no_law"),
-        (f"ACS {args.acs_state} {args.acs_year}", args.no_acs, acs_fn, "pass --no_acs"),
-        (f"HMDA {args.hmda_state} {args.hmda_year}", args.no_hmda, hmda_fn, "pass --no_hmda"),
-        *extra,
-    ):
+    for name, skip, fn, how in (("LSAC (law school)", args.no_law, law_fn, "pass --no_law"),
+                                (f"ACS {args.acs_state} {args.acs_year}", args.no_acs, acs_fn, "pass --no_acs"),
+                                (f"HMDA {args.hmda_state} {args.hmda_year}", args.no_hmda, hmda_fn, "pass --no_hmda"),
+                                *extra):
         if skip:
             continue
         print(f"loading {name} ...", flush=True)
@@ -947,25 +823,16 @@ def load_diab_reg(args):
 def load_enem_reg(args):
     import lib_extra_data
 
-    return Problem(
-        *lib_extra_data.load_enem(
-            args.enem_path, args.enem_group, args.enem_score, args.enem_n, args.seed, "regression"
-        )
-    )
+    return Problem(*lib_extra_data.load_enem(
+                       args.enem_path, args.enem_group, args.enem_score, args.enem_n, args.seed, "regression"
+                   ))
 
 
 def real_problems(args):
-    extra = [
-        ("Diabetes 130-US Hospitals", not args.diab, load_diab_reg, "drop --diab"),
-        (f"ENEM 2020 ({args.enem_path})", not args.enem_path, load_enem_reg, "drop --enem_path"),
-    ]
-    return load_real(
-        args,
-        lambda a: load_law("race", path=a.law_path),
-        lambda a: load_acs(a.acs_state, a.acs_year, a.acs_n, a.acs_group, a.seed),
-        load_hmda_reg,
-        extra,
-    )
+    extra = [("Diabetes 130-US Hospitals", not args.diab, load_diab_reg, "drop --diab"),
+             (f"ENEM 2020 ({args.enem_path})", not args.enem_path, load_enem_reg, "drop --enem_path")]
+    return load_real(args, lambda a: load_law("race", path=a.law_path),
+                     lambda a: load_acs(a.acs_state, a.acs_year, a.acs_n, a.acs_group, a.seed), load_hmda_reg, extra)
 
 
 def synth_builder(args):
@@ -990,11 +857,8 @@ def harm_runs(prob, fam, m, reps, rng):
     rr = float(prob.r @ prob.r)
     for t in range(reps):
         xt, OK[t] = prob.solve_checked(vanilla_SQ(prob, fam, m, rng))
-        S[t] = [
-            np.linalg.norm(xt) / np.linalg.norm(xh) - 1.0,
-            abs(prob.v @ xt) - abs(prob.v @ xh),
-            abs(prob.gap(xt)) - abs(prob.gap(xh)),
-        ]
+        S[t] = [np.linalg.norm(xt) / np.linalg.norm(xh) - 1.0, abs(prob.v @ xt) - abs(prob.v @ xh),
+                abs(prob.gap(xt)) - abs(prob.gap(xh))]
         D = xt - xh
         X[t] = float(D @ base_gram @ D) / rr
     return S, X, OK
@@ -1020,24 +884,11 @@ def harm_table(prob, m, reps, rng, fams=FAMS):
             s = S[:, j]
             rel = s / base[met]
             rows.append(
-                dict(
-                    dataset=prob.name,
-                    m=m,
-                    family=fam,
-                    metric=met,
-                    ols_value=ols[met],
-                    reps=reps,
-                    mean_signed=s.mean(),
-                    se_signed=s.std(ddof=1) / np.sqrt(nok),
-                    frac_failed=ff,
-                    frac_worse=(s > 0).mean(),
-                    mean_abs=np.abs(s).mean(),
-                    mean_rel=rel.mean(),
-                    mean_abs_rel=np.abs(rel).mean(),
-                    q10_rel=np.quantile(rel, 0.1),
-                    q90_rel=np.quantile(rel, 0.9),
-                    excess_loss_rel=X.mean(),
-                )
+                dict(dataset=prob.name, m=m, family=fam, metric=met, ols_value=ols[met], reps=reps,
+                     mean_signed=s.mean(), se_signed=s.std(ddof=1) / np.sqrt(nok), frac_failed=ff,
+                     frac_worse=(s > 0).mean(), mean_abs=np.abs(s).mean(), mean_rel=rel.mean(),
+                     mean_abs_rel=np.abs(rel).mean(), q10_rel=np.quantile(rel, 0.1), q90_rel=np.quantile(rel, 0.9),
+                     excess_loss_rel=X.mean())
             )
     return pd.DataFrame(rows)
 
@@ -1051,28 +902,10 @@ def save_harm_table(df, out, tag):
     df.to_csv(f"{out}/harm_{tag}.csv", index=False)
     write_booktabs(
         df,
-        [
-            "metric",
-            "family",
-            "ols_value",
-            "mean_signed",
-            "mean_rel",
-            "frac_worse",
-            "q10_rel",
-            "q90_rel",
-            "excess_loss_rel",
-        ],
-        [
-            "Metric",
-            "Sketch",
-            "OLS value",
-            "Mean change",
-            "Mean rel.\\ change",
-            "\\% runs worse",
-            "10th pct (rel.)",
-            "90th pct (rel.)",
-            "Excess loss (rel.)",
-        ],
+        ["metric", "family", "ols_value", "mean_signed", "mean_rel", "frac_worse", "q10_rel", "q90_rel",
+         "excess_loss_rel"],
+        ["Metric", "Sketch", "OLS value", "Mean change", "Mean rel.\\ change", "\\% runs worse", "10th pct (rel.)",
+         "90th pct (rel.)", "Excess loss (rel.)"],
         f"{out}/harm_{tag}.tex",
         caption=f"Effect of sketching on fairness ({tag}). Positive change = larger disparity than OLS.",
         label=f"tab:harm_{tag}",
@@ -1143,14 +976,8 @@ def save_method_table(df, path_stem, metric_order, method_order, method_label, c
     write_booktabs(
         t,
         cols,
-        [
-            "Metric",
-            "Method",
-            "Mean $|$change$|$ (rel.)",
-            "Mean change (rel.)",
-            "\\% worse",
-            "$f(\\tilde x)/f(\\hat x)$",
-        ],
+        ["Metric", "Method", "Mean $|$change$|$ (rel.)", "Mean change (rel.)", "\\% worse",
+         "$f(\\tilde x)/f(\\hat x)$"],
         f"{path_stem}.tex",
         caption=caption,
         label=label,
@@ -1172,11 +999,6 @@ def trim_x(df, xcol, logx, series_col, keys, tol=0.05, frac=1 / 3):
     return df[df[xcol].isin(keep)]
 
 
-def sd_ylab(met, absolute=False):
-    w = "change" if absolute else "rel. change"
-    return f"{met}: $|${w}$|$", f"{met}: {w}"
-
-
 def sd_layout(
     df, xcol, logx, series_col, keys, metrics, min_base=None, mask_metrics=(), floor=None, trim=False, log_ratio=20.0
 ):
@@ -1196,26 +1018,8 @@ def sd_layout(
     return df, panels
 
 
-def plot_sd(
-    df,
-    xcol,
-    xlabel,
-    path,
-    series,
-    series_col,
-    metrics,
-    logx=True,
-    band=False,
-    zero_label=None,
-    zero_color="k",
-    min_base=None,
-    mask_metrics=(),
-    floor=None,
-    tight_size=False,
-    trim=False,
-    log_ratio=20.0,
-    abs_metrics=(),
-):
+def plot_sd(df, xcol, xlabel, path, series, series_col, metrics, logx=True, band=False, zero_label=None, zero_color="k",
+            min_base=None, mask_metrics=(), floor=None, tight_size=False, trim=False, log_ratio=20.0, abs_metrics=()):
     df, panels = sd_layout(
         df, xcol, logx, series_col, [s["key"] for s in series], metrics, min_base, mask_metrics, floor, trim, log_ratio
     )
@@ -1223,15 +1027,8 @@ def plot_sd(
     for j, met in enumerate(metrics):
         dm, logy = panels[met]
         if dm.empty and not df[df.metric == met].empty:
-            axes[0, j].text(
-                0.5,
-                0.5,
-                f"exact gap below {min_base}:\nrelative change undefined",
-                ha="center",
-                va="center",
-                transform=axes[0, j].transAxes,
-                fontsize=13,
-            )
+            axes[0, j].text(0.5, 0.5, f"exact gap below {min_base}:\nrelative change undefined", ha="center",
+                            va="center", transform=axes[0, j].transAxes, fontsize=13)
         curves = [(sr, dm[dm[series_col] == sr["key"]].sort_values(xcol)) for sr in series]
         curves = [(sr, d) for sr, d in curves if not d.empty]
         ypos, dvals = [], []
@@ -1261,9 +1058,9 @@ def plot_sd(
         axes[1, j].set_xlabel(tx(xlabel))
         for i in range(2):
             axes[i, j].set_xscale("log" if logx else "linear")
-        a, b = sd_ylab(met, met in abs_metrics)
-        axes[0, j].set_ylabel(a)
-        axes[1, j].set_ylabel(b)
+        w = "change" if met in abs_metrics else "rel. change"
+        axes[0, j].set_ylabel(f"{met}: $|${w}$|$")
+        axes[1, j].set_ylabel(f"{met}: {w}")
     style_axes(axes, _xt(df, xcol))
     legend_above(fig, axes, 0.93)
     fig.savefig(path, dpi=140)
@@ -1301,28 +1098,15 @@ def run_sweep_sd(name, xs, builder, m, reps, rng, out, xlabel, logx=True, extra_
 
 
 def plot_methods_sd(df, xcol, xlabel, path, fam, logx=True):
-    series = [
-        dict(key="vanilla", color=PALETTE["vanilla"], style="x-", label="sketched (vanilla)"),
-        dict(key="oracle", color=PALETTE["oracle"], style="o-", label="oracle"),
-        dict(key="proxy", color=PALETTE["proxy"], style="s-", label="proxy"),
-    ]
+    series = [dict(key="vanilla", color=PALETTE["vanilla"], style="x-", label="sketched (vanilla)"),
+              dict(key="oracle", color=PALETTE["oracle"], style="o-", label="oracle"),
+              dict(key="proxy", color=PALETTE["proxy"], style="s-", label="proxy")]
     if df[df.family == fam][xcol].nunique() < 2:
         if os.path.exists(path):
             os.remove(path)
         return
-    plot_sd(
-        df[df.family == fam],
-        xcol,
-        xlabel,
-        path,
-        series,
-        "method",
-        METRICS,
-        logx=logx,
-        band=True,
-        zero_label="unsketched (OLS)",
-        zero_color="k",
-    )
+    plot_sd(df[df.family == fam], xcol, xlabel, path, series, "method", METRICS, logx=logx, band=True,
+            zero_label="unsketched (OLS)", zero_color="k")
 
 
 def run_sweep_methods(name, xs, builder, mfun, mpfun, reps, rng, out, xlabel, logx=True, pilot_fam="gauss", fams=SFAMS):
@@ -1350,22 +1134,9 @@ def beta_table(prob):
             V = vanilla_value(prob, C, fam)
             O = (np.sqrt(b0) + np.sqrt(b1)) ** 2
             rows.append(
-                dict(
-                    metric=met,
-                    family=fam,
-                    rho0=bt[0]["rho"],
-                    rho1=bt[1]["rho"],
-                    tau0=bt[0]["tau"],
-                    tau1=bt[1]["tau"],
-                    zeta0=bt[0]["zeta"],
-                    zeta1=bt[1]["zeta"],
-                    beta0=b0,
-                    beta1=b1,
-                    omega=np.sqrt(b1 / b0) if b0 > 0 else np.nan,
-                    V=V,
-                    O=O,
-                    R=V / O if O > 0 else np.nan,
-                )
+                dict(metric=met, family=fam, rho0=bt[0]["rho"], rho1=bt[1]["rho"], tau0=bt[0]["tau"], tau1=bt[1]["tau"],
+                     zeta0=bt[0]["zeta"], zeta1=bt[1]["zeta"], beta0=b0, beta1=b1,
+                     omega=np.sqrt(b1 / b0) if b0 > 0 else np.nan, V=V, O=O, R=V / O if O > 0 else np.nan)
             )
     return pd.DataFrame(rows)
 

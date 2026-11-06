@@ -3,35 +3,15 @@ import numpy as np
 import pandas as pd
 
 BASE = "https://ffiec.cfpb.gov/v2/data-browser-api/view/csv"
-WANT = {
-    "action_taken",
-    "derived_race",
-    "derived_ethnicity",
-    "derived_sex",
-    "loan_amount",
-    "income",
-    "property_value",
-    "combined_loan_to_value_ratio",
-    "loan_to_value_ratio",
-    "debt_to_income_ratio",
-    "loan_type",
-    "occupancy_type",
-    "applicant_age",
-    "ageapplicant",
-    "interest_rate",
-    "total_units",
-    "business_or_commercial_purpose",
-    "open-end_line_of_credit",
-    "loan_purpose",
-    "lien_status",
-}
+WANT = {"action_taken", "derived_race", "derived_ethnicity", "derived_sex", "loan_amount", "income", "property_value",
+        "combined_loan_to_value_ratio", "loan_to_value_ratio", "debt_to_income_ratio", "loan_type", "occupancy_type",
+        "applicant_age", "ageapplicant", "interest_rate", "total_units", "business_or_commercial_purpose",
+        "open-end_line_of_credit", "loan_purpose", "lien_status"}
 DTI = {"<20%": 15, "20%-<30%": 25, "30%-<36%": 33, "50%-60%": 55, ">60%": 65}
 AGE = {"<25": 22, "25-34": 30, "35-44": 40, "45-54": 50, "55-64": 60, "65-74": 70, ">74": 80}
-GROUPS = {
-    "race": ("derived_race", "Black or African American", "White"),
-    "ethnicity": ("derived_ethnicity", "Hispanic or Latino", "Not Hispanic or Latino"),
-    "sex": ("derived_sex", "Female", "Male"),
-}
+GROUPS = {"race": ("derived_race", "Black or African American", "White"),
+          "ethnicity": ("derived_ethnicity", "Hispanic or Latino", "Not Hispanic or Latino"),
+          "sex": ("derived_sex", "Female", "Male")}
 
 
 def url(state="CA", year=2018):
@@ -50,13 +30,9 @@ def _dti(s):
 
 
 HEADERS = [
-    {
-        "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
-        "Accept": "text/csv,application/csv,*/*;q=0.8",
-        "Accept-Language": "en-US,en;q=0.9",
-        "Referer": "https://ffiec.cfpb.gov/data-browser/",
-        "Origin": "https://ffiec.cfpb.gov",
-    },
+    {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
+     "Accept": "text/csv,application/csv,*/*;q=0.8", "Accept-Language": "en-US,en;q=0.9",
+     "Referer": "https://ffiec.cfpb.gov/data-browser/", "Origin": "https://ffiec.cfpb.gov"},
     {"User-Agent": "curl/8.5.0", "Accept": "*/*"},
     {"User-Agent": "python-requests/2.31.0", "Accept": "*/*"},
 ]
@@ -137,16 +113,8 @@ def clean(raw, group="race", n_max=200000, seed=0):
     if "combined_loan_to_value_ratio" not in df.columns and "loan_to_value_ratio" in df.columns:
         df = df.rename(columns={"loan_to_value_ratio": "combined_loan_to_value_ratio"})
     col, g1, g0 = GROUPS[group]
-    need = {
-        "action_taken",
-        col,
-        "loan_amount",
-        "income",
-        "property_value",
-        "combined_loan_to_value_ratio",
-        "debt_to_income_ratio",
-        "loan_type",
-    }
+    need = {"action_taken", col, "loan_amount", "income", "property_value", "combined_loan_to_value_ratio",
+            "debt_to_income_ratio", "loan_type"}
     missing = need - set(df.columns)
     if missing:
         raise ValueError(f"HMDA file is missing columns {sorted(missing)}; columns present: {sorted(df.columns)}")
@@ -164,28 +132,13 @@ def clean(raw, group="race", n_max=200000, seed=0):
     df = df[df[col].isin([g1, g0])]
     df["g"] = (df[col] == g1).astype(int)
     out = pd.DataFrame(
-        {
-            "action": df.action,
-            "g": df.g,
-            "income": _num(df["income"]),
-            "loan": _num(df["loan_amount"]),
-            "value": _num(df["property_value"]),
-            "cltv": _num(df["combined_loan_to_value_ratio"]),
-            "dti": _dti(df["debt_to_income_ratio"]),
-            "age": df[age_col].map(AGE) if age_col in df.columns else np.nan,
-            "ltype": _num(df["loan_type"]),
-            "rate": _num(df["interest_rate"]) if "interest_rate" in df.columns else np.nan,
-        }
+        {"action": df.action, "g": df.g, "income": _num(df["income"]), "loan": _num(df["loan_amount"]),
+         "value": _num(df["property_value"]), "cltv": _num(df["combined_loan_to_value_ratio"]),
+         "dti": _dti(df["debt_to_income_ratio"]), "age": df[age_col].map(AGE) if age_col in df.columns else np.nan,
+         "ltype": _num(df["loan_type"]), "rate": _num(df["interest_rate"]) if "interest_rate" in df.columns else np.nan}
     )
-    out = out[
-        (out.income > 0)
-        & (out.loan > 0)
-        & (out.value > 0)
-        & out.cltv.notna()
-        & out.dti.notna()
-        & out.age.notna()
-        & out.ltype.notna()
-    ]
+    out = out[(out.income > 0) & (out.loan > 0) & (out.value > 0) & out.cltv.notna() & out.dti.notna() & out.age.notna()
+              & out.ltype.notna()]
     out["cltv"] = out.cltv.clip(0, 250)
     out = out.reset_index(drop=True)
     if len(out) > n_max:
@@ -195,14 +148,8 @@ def clean(raw, group="race", n_max=200000, seed=0):
 
 def features(d):
     X = pd.DataFrame(
-        {
-            "log_income": np.log(d.income),
-            "log_loan": np.log(d.loan),
-            "log_value": np.log(d.value),
-            "cltv": d.cltv,
-            "dti": d.dti,
-            "age": d.age,
-        }
+        {"log_income": np.log(d.income), "log_loan": np.log(d.loan), "log_value": np.log(d.value), "cltv": d.cltv,
+         "dti": d.dti, "age": d.age}
     )
     lt = pd.get_dummies(d.ltype.astype(int).astype(str), prefix="loan_type", drop_first=True).astype(float)
     X = pd.concat([X, lt], axis=1)
@@ -221,9 +168,7 @@ def load(state="CA", year=2018, group="race", n_max=200000, seed=0, path=None, t
     else:
         y = np.where(d.action.values == 1, 1.0, -1.0)
     name = f"hmda-{state}{year}-{group}-" + ("rate" if task == "regression" else "approval")
-    print(
-        f"HMDA {name}: n={len(d)}, minority share={d.g.mean():.3f}, "
-        + (f"mean rate={y.mean():.2f}" if task == "regression" else f"approval rate={(y > 0).mean():.3f}"),
-        flush=True,
-    )
+    print(f"HMDA {name}: n={len(d)}, minority share={d.g.mean():.3f}, "
+          + (f"mean rate={y.mean():.2f}" if task == "regression" else f"approval rate={(y > 0).mean():.3f}"),
+          flush=True)
     return features(d), y, d.g.values.astype(int), name

@@ -17,21 +17,14 @@ from fs_common import ensure_scienceplots
 PILOTS = [1, 2.5, 5, 10, 20, 40, 80]
 REFS = ["c_unif", "c_lev"]
 PROXIES = ["c_tgt_proxy", "c_strat_tgt_proxy"]
-STYLE = {
-    "c_lev": ("Leverage", PALETTE["lev"], "--"),
-    "c_tgt_proxy": ("Targeted, proxy", PALETTE["proxy"], "-"),
-    "c_strat_tgt_proxy": ("Stratified targeted, proxy", PALETTE["strat_proxy"], "-"),
-}
+STYLE = {"c_lev": ("Leverage", PALETTE["lev"], "--"), "c_tgt_proxy": ("Targeted, proxy", PALETTE["proxy"], "-"),
+         "c_strat_tgt_proxy": ("Stratified targeted, proxy", PALETTE["strat_proxy"], "-")}
 NAMES = {"law": "LSAC", "acs": "ACS Income", "hmda": "HMDA", "diab": "130-Hospitals"}
-
-
-def budgets(p):
-    return [k * p.d for k in (40, 160 if 160 * p.d < p.n // 4 else 80)]
 
 
 def sweep(p, reps, rng):
     frames = []
-    for m in budgets(p):
+    for m in [k * p.d for k in (40, 160 if 160 * p.d < p.n // 4 else 80)]:
         p.m_p = None
         ref = cl.experiment(p, m, reps, rng, meths=REFS, runner=run_coreset)
         frames.append(ref.assign(budget=m / p.d, pilot=np.nan, d=p.d))

@@ -43,27 +43,14 @@ def load_enem_class(path, group="race", score="NU_NOTA_CH", n_max=50000, seed=0,
 
 
 def real_class_problems(args):
-    extra = [
-        (
-            "Diabetes 130-US Hospitals",
-            not args.diab,
-            lambda a: load_diab_class(a.diab_n, a.seed, a.diab_path),
-            "drop --diab",
-        ),
-        (
-            f"ENEM 2020 ({args.enem_path})",
-            not args.enem_path,
-            lambda a: load_enem_class(a.enem_path, a.enem_group, a.enem_score, a.enem_n, a.seed),
-            "drop --enem_path",
-        ),
-    ]
-    return load_real(
-        args,
-        lambda a: load_law_class(a.law_path),
-        lambda a: load_acs_class(a.acs_state, a.acs_year, a.acs_n, a.acs_group, a.seed),
-        lambda a: load_hmda_class(a.hmda_state, a.hmda_year, a.hmda_group, a.hmda_n, a.seed, a.hmda_path),
-        extra,
-    )
+    extra = [("Diabetes 130-US Hospitals", not args.diab, lambda a: load_diab_class(a.diab_n, a.seed, a.diab_path),
+              "drop --diab"),
+             (f"ENEM 2020 ({args.enem_path})", not args.enem_path,
+              lambda a: load_enem_class(a.enem_path, a.enem_group, a.enem_score, a.enem_n, a.seed), "drop --enem_path")]
+    return load_real(args, lambda a: load_law_class(a.law_path),
+                     lambda a: load_acs_class(a.acs_state, a.acs_year, a.acs_n, a.acs_group, a.seed),
+                     lambda a: load_hmda_class(a.hmda_state, a.hmda_year, a.hmda_group, a.hmda_n, a.seed, a.hmda_path),
+                     extra)
 
 
 def add_real_class_args(ap):

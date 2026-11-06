@@ -10,11 +10,9 @@ from lib_coreset import S5C_METH as S5_METH, run_coreset
 
 DEFAULT_T = 3
 
-SPECS = {
-    "s5c_synth_m": dict(x="m", label="sketch size m", logx=True, meths=S5_METH),
-    "s5c_synth_minority": dict(x="frac1", label="minority fraction", logx=False, meths=S5_METH),
-    "s5c_synth_mis": dict(x="mis", label="group model gap", logx=False, meths=S5_METH),
-}
+SPECS = {"s5c_synth_m": dict(x="m", label="sketch size m", logx=True, meths=S5_METH),
+         "s5c_synth_minority": dict(x="frac1", label="minority fraction", logx=False, meths=S5_METH),
+         "s5c_synth_mis": dict(x="mis", label="group model gap", logx=False, meths=S5_METH)}
 
 
 def main():
@@ -31,13 +29,9 @@ def main():
     base = mk()
     base.T = a.T
     print("exact-model gaps:", {k: round(float(v), 4) for k, v in base.base.items()}, flush=True)
-    cl.table(
-        cl.experiment(base, a.m, a.reps, rng, meths=S5_METH, runner=run_coreset),
-        a.out,
-        "s5c_synth_table",
-        S5_METH,
-        f"Classification, synthetic, m={a.m}: one-shot coresets; Newton sketch reference with {a.T} steps.",
-    )
+    cl.table(cl.experiment(base, a.m, a.reps, rng, meths=S5_METH, runner=run_coreset), a.out, "s5c_synth_table",
+             S5_METH,
+             f"Classification, synthetic, m={a.m}: one-shot coresets; Newton sketch reference with {a.T} steps.")
     sw = set(a.sweep.split(","))
     q = a.quick
     run = lambda builder, xs, xname, **kw: cl.sweep(

@@ -4,21 +4,8 @@ from pandas.api.types import union_categoricals
 from fs_common import _standardise
 
 DIAB_NUM = ["num_lab_procedures", "num_procedures", "num_medications", "number_diagnoses"]
-DIAB_CAT = [
-    "gender",
-    "age",
-    "primary_diagnosis",
-    "max_glu_serum",
-    "A1Cresult",
-    "insulin",
-    "change",
-    "diabetesMed",
-    "medicare",
-    "medicaid",
-    "had_emergency",
-    "had_inpatient_days",
-    "had_outpatient_days",
-]
+DIAB_CAT = ["gender", "age", "primary_diagnosis", "max_glu_serum", "A1Cresult", "insulin", "change", "diabetesMed",
+            "medicare", "medicaid", "had_emergency", "had_inpatient_days", "had_outpatient_days"]
 
 ENEM_PRES = ["TP_PRESENCA_CN", "TP_PRESENCA_CH", "TP_PRESENCA_LC", "TP_PRESENCA_MT"]
 ENEM_Q = [f"Q{i:03d}" for i in range(1, 25)]
@@ -57,11 +44,8 @@ def load_diabetes(n_max=None, seed=0, path=None, task="classification"):
 
 
 def load_enem(path, group="race", score="NU_NOTA_CH", n_max=None, seed=0, task="classification"):
-    cols = (
-        [score, "TP_COR_RACA", "TP_SEXO", "SG_UF_PROVA", "TP_FAIXA_ETARIA", "IN_TREINEIRO", "TP_ST_CONCLUSAO"]
-        + ENEM_PRES
-        + ENEM_Q
-    )
+    cols = ([score, "TP_COR_RACA", "TP_SEXO", "SG_UF_PROVA", "TP_FAIXA_ETARIA", "IN_TREINEIRO", "TP_ST_CONCLUSAO"]
+            + ENEM_PRES + ENEM_Q)
     cat_dtypes = {c: "category" for c in ENEM_Q + ["TP_SEXO", "SG_UF_PROVA"] if c != "Q005"}
     keep = []
     for ch in pd.read_csv(path, sep=";", encoding="latin-1", usecols=cols, dtype=cat_dtypes, chunksize=500_000):
@@ -70,11 +54,8 @@ def load_enem(path, group="race", score="NU_NOTA_CH", n_max=None, seed=0, task="
         keep.append(ch[ch["TP_COR_RACA"].between(1, 5)].dropna())
     df = pd.DataFrame(
         {
-            c: (
-                union_categoricals([ch[c] for ch in keep])
-                if isinstance(keep[0][c].dtype, pd.CategoricalDtype)
-                else pd.concat([ch[c] for ch in keep], ignore_index=True)
-            )
+            c: (union_categoricals([ch[c] for ch in keep]) if isinstance(keep[0][c].dtype, pd.CategoricalDtype)
+                else pd.concat([ch[c] for ch in keep], ignore_index=True))
             for c in cols
         }
     )
